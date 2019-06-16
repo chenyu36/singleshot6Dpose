@@ -1,0 +1,6 @@
+train  = FRC2019/cargo/train.txt
+valid  = FRC2019/cargo/test.txt
+backup = backup/cargo
+mesh = FRC2019/cargo/cargo.ply
+name = cargo
+diam = 0.33
