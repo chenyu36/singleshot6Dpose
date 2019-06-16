@@ -309,7 +309,7 @@ if __name__ == "__main__":
     bg_file_names = get_all_files('VOCdevkit/VOC2012/JPEGImages')
 
     # Train parameters
-    max_epochs    = 700 # max_batches*batch_size/nsamples+1
+    max_epochs    = 300 # max_batches*batch_size/nsamples+1
     use_cuda      = True
     seed          = int(time.time())
     eps           = 1e-5
@@ -321,8 +321,8 @@ if __name__ == "__main__":
     conf_thresh   = 0.1
     nms_thresh    = 0.4
     iou_thresh    = 0.5
-    im_width      = 640
-    im_height     = 480 
+    im_width      = 1280
+    im_height     = 720 
 
     # Specify which gpus to use
     torch.manual_seed(seed)

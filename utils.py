@@ -11,7 +11,23 @@ import cv2
 from scipy import spatial
 
 import struct 
-import imghdr 
+import imghdr
+ 
+import cython
+from scipy.special import softmax
+
+#TensorRT stuff
+from numpy import array
+import pycuda.driver as cuda
+import pycuda.autoinit
+import tensorrt as trt
+import sys, os
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
+import common
+
+# You can set the logger severity higher to suppress messages (or lower to display more messages).
+TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+
 
 def get_all_files(directory):
     files = []
@@ -31,8 +47,8 @@ def calcAngularDistance(gt_rot, pr_rot):
 
 def get_camera_intrinsic():
     K = np.zeros((3, 3), dtype='float64')
-    K[0, 0], K[0, 2] = 572.4114, 325.2611
-    K[1, 1], K[1, 2] = 573.5704, 242.0489
+    K[0, 0], K[0, 2] = 1.13908155e+03, 6.57642892e+02
+    K[1, 1], K[1, 2] = 1.13705701e+03, 3.28071843e+02
     K[2, 2] = 1.
     return K
 
@@ -70,6 +86,14 @@ def get_3D_corners(vertices):
     max_y = np.max(vertices[1,:])
     min_z = np.min(vertices[2,:])
     max_z = np.max(vertices[2,:])
+
+    # use stub since we know the cargo ball's bounding box
+    #min_x = -0.33/2
+    #max_x = 0.33/2
+    #min_y = -0.33/2
+    #max_y = 0.33/2
+    #min_z = -0.33/2
+    #max_z = 0.33/2
 
     corners = np.array([[min_x, min_y, min_z],
                         [min_x, min_y, max_z],
@@ -134,10 +158,10 @@ def compute_2d_bb(pts):
     return new_box
 
 def compute_2d_bb_from_orig_pix(pts, size):
-    min_x = np.min(pts[0,:]) / 640.0
-    max_x = np.max(pts[0,:]) / 640.0
-    min_y = np.min(pts[1,:]) / 480.0
-    max_y = np.max(pts[1,:]) / 480.0
+    min_x = np.min(pts[0,:]) / 1280.0
+    max_x = np.max(pts[0,:]) / 1280.0
+    min_y = np.min(pts[1,:]) / 720.0
+    max_y = np.max(pts[1,:]) / 720.0
     w  = max_x - min_x
     h  = max_y - min_y
     cx = (max_x + min_x) / 2.0
@@ -178,7 +202,7 @@ def bbox_iou(box1, box2, x1y1x2y2=False):
     uarea = area1 + area2 - carea
     return carea/uarea
 
-def corner_confidences(gt_corners, pr_corners, th=30, sharpness=2, im_width=640, im_height=480):
+def corner_confidences(gt_corners, pr_corners, th=30, sharpness=2, im_width=1280, im_height=720):
     ''' gt_corners: Ground-truth 2D projections of the 3D bounding box corners, shape: (16 x nA), type: torch.FloatTensor
         pr_corners: Prediction for the 2D projections of the 3D bounding box corners, shape: (16 x nA), type: torch.FloatTensor
         th        : distance threshold, type: int
@@ -205,7 +229,7 @@ def corner_confidences(gt_corners, pr_corners, th=30, sharpness=2, im_width=640,
     mean_conf = torch.mean(conf, dim=1)
     return mean_conf
 
-def corner_confidence(gt_corners, pr_corners, th=30, sharpness=2, im_width=640, im_height=480):
+def corner_confidence(gt_corners, pr_corners, th=30, sharpness=2, im_width=1280, im_height=720):
     ''' gt_corners: Ground-truth 2D projections of the 3D bounding box corners, shape: (16,) type: list
         pr_corners: Prediction for the 2D projections of the 3D bounding box corners, shape: (16,), type: list
         th        : distance threshold, type: int
@@ -227,7 +251,7 @@ def corner_confidence(gt_corners, pr_corners, th=30, sharpness=2, im_width=640, 
     conf  = mask * conf 
     return torch.mean(conf)
 
-def corner_confidences9(gt_corners, pr_corners, th=80, sharpness=2, im_width=640, im_height=480):
+def corner_confidences9(gt_corners, pr_corners, th=80, sharpness=2, im_width=1280, im_height=720):
     ''' gt_corners: Ground-truth 2D projections of the 3D bounding box corners, shape: (16 x nA), type: torch.FloatTensor
         pr_corners: Prediction for the 2D projections of the 3D bounding box corners, shape: (16 x nA), type: torch.FloatTensor
         th        : distance threshold, type: int
@@ -254,7 +278,7 @@ def corner_confidences9(gt_corners, pr_corners, th=80, sharpness=2, im_width=640
     mean_conf = torch.mean(conf, dim=1)
     return mean_conf
 
-def corner_confidence9(gt_corners, pr_corners, th=80, sharpness=2, im_width=640, im_height=480):
+def corner_confidence9(gt_corners, pr_corners, th=80, sharpness=2, im_width=1280, im_height=720):
     ''' gt_corners: Ground-truth 2D projections of the 3D bounding box corners, shape: (18,) type: list
         pr_corners: Prediction for the 2D projections of the 3D bounding box corners, shape: (18,), type: list
         th        : distance threshold, type: int
@@ -279,7 +303,7 @@ def corner_confidence9(gt_corners, pr_corners, th=80, sharpness=2, im_width=640,
 def sigmoid(x):
     return 1.0/(math.exp(-x)+1.)
 
-def softmax(x):
+def softmax_torch(x):
     x = torch.exp(x - torch.max(x))
     x = x/x.sum()
     return x
@@ -324,26 +348,55 @@ def convert2cpu(gpu_matrix):
 def convert2cpu_long(gpu_matrix):
     return torch.LongTensor(gpu_matrix.size()).copy_(gpu_matrix)
 
+# custom function
+
+
+@cython.boundscheck(False)
 def get_region_boxes(output, conf_thresh, num_classes, only_objectness=1, validation=False):
     
+    t0minus = time.time()
     # Parameters
     anchor_dim = 1 
-    if output.dim() == 3:
-        output = output.unsqueeze(0)
-    batch = output.size(0)
-    assert(output.size(1) == (19+num_classes)*anchor_dim)
-    h = output.size(2)
-    w = output.size(3)
+    #if output.dim() == 3:
+    #output = output.cpu().numpy()
+    print('output numpy shape ',output.shape)
+    if output.shape == 3:    
+        output = output.unsqueeze(0) #TODO
+    batch = output.shape[0]
+    assert(output.shape[1] == (19+num_classes)*anchor_dim)
+    h = output.shape[2]
+    w = output.shape[3]
 
     # Activation
     t0 = time.time()
     all_boxes = []
     max_conf = -100000
-    output    = output.view(batch*anchor_dim, 19+num_classes, h*w).transpose(0,1).contiguous().view(19+num_classes, batch*anchor_dim*h*w)
-    grid_x    = torch.linspace(0, w-1, w).repeat(h,1).repeat(batch*anchor_dim, 1, 1).view(batch*anchor_dim*h*w).cuda()
-    grid_y    = torch.linspace(0, h-1, h).repeat(w,1).t().repeat(batch*anchor_dim, 1, 1).view(batch*anchor_dim*h*w).cuda()
-    xs0       = torch.sigmoid(output[0]) + grid_x
-    ys0       = torch.sigmoid(output[1]) + grid_y
+    output = output.reshape(batch*anchor_dim, 19+num_classes, h*w)#.transpose(0,1).ascontiguousarray(output)
+    #print('reshaped output numpy has shape ',output.shape)
+    output = np.transpose(output, (1,0,2))
+    #print('reshaped output numpy has shape ',output.shape)
+    output = np.ascontiguousarray(output)
+    #print('reshaped output numpy has shape ',output.shape)
+
+    
+    output = output.reshape(19+num_classes, batch*anchor_dim*h*w)
+
+    #grid_x    = torch.linspace(0, w-1, w).repeat(h,1).repeat(batch*anchor_dim, 1, 1).view(batch*anchor_dim*h*w).cuda()
+
+    temp_x = np.linspace(0, w-1, w)
+    temp_x = np.tile(temp_x, (h,1))
+    temp_x = np.tile(temp_x, (batch*anchor_dim, 1, 1))
+    grid_x    = temp_x.reshape(batch*anchor_dim*h*w)
+    
+    temp_y = np.linspace(0, h-1, h)
+    temp_y = np.tile(temp_y,(w,1))
+    temp_y = np.transpose(temp_y, (1,0))
+    grid_y = np.tile(temp_y, (batch*anchor_dim, 1, 1)).reshape(batch*anchor_dim*h*w)
+
+    # define vectorized sigmoid
+    sigmoid_v = np.vectorize(sigmoid)
+    xs0       = sigmoid_v(output[0]) + grid_x
+    ys0       = sigmoid_v(output[1]) + grid_y
     xs1       = output[2] + grid_x
     ys1       = output[3] + grid_y
     xs2       = output[4] + grid_x
@@ -360,39 +413,41 @@ def get_region_boxes(output, conf_thresh, num_classes, only_objectness=1, valida
     ys7       = output[15] + grid_y
     xs8       = output[16] + grid_x
     ys8       = output[17] + grid_y
-    det_confs = torch.sigmoid(output[18])
-    cls_confs = torch.nn.Softmax()(Variable(output[19:19+num_classes].transpose(0,1))).data
-    cls_max_confs, cls_max_ids = torch.max(cls_confs, 1)
-    cls_max_confs = cls_max_confs.view(-1)
-    cls_max_ids   = cls_max_ids.view(-1)
+    det_confs = sigmoid_v(output[18])
+    output_transpose = np.transpose(output[19:19+num_classes], (1,0))
+    cls_confs = softmax(output_transpose)
+    cls_max_ids = np.argmax(cls_confs, 1)
+    cls_max_confs = np.amax(cls_confs, 1)
+    cls_max_confs = cls_max_confs.reshape(-1)
+    cls_max_ids   = cls_max_ids.reshape(-1)
     t1 = time.time()
     
     # GPU to CPU
     sz_hw = h*w
     sz_hwa = sz_hw*anchor_dim
-    det_confs = convert2cpu(det_confs)
-    cls_max_confs = convert2cpu(cls_max_confs)
-    cls_max_ids = convert2cpu_long(cls_max_ids)
-    xs0 = convert2cpu(xs0)
-    ys0 = convert2cpu(ys0)
-    xs1 = convert2cpu(xs1)
-    ys1 = convert2cpu(ys1)
-    xs2 = convert2cpu(xs2)
-    ys2 = convert2cpu(ys2)
-    xs3 = convert2cpu(xs3)
-    ys3 = convert2cpu(ys3)
-    xs4 = convert2cpu(xs4)
-    ys4 = convert2cpu(ys4)
-    xs5 = convert2cpu(xs5)
-    ys5 = convert2cpu(ys5)
-    xs6 = convert2cpu(xs6)
-    ys6 = convert2cpu(ys6)
-    xs7 = convert2cpu(xs7)
-    ys7 = convert2cpu(ys7)
-    xs8 = convert2cpu(xs8)
-    ys8 = convert2cpu(ys8)
-    if validation:
-        cls_confs = convert2cpu(cls_confs.view(-1, num_classes))
+    # det_confs = convert2cpu(det_confs)
+    # cls_max_confs = convert2cpu(cls_max_confs)
+    # cls_max_ids = convert2cpu_long(cls_max_ids)
+    # xs0 = convert2cpu(xs0)
+    # ys0 = convert2cpu(ys0)
+    # xs1 = convert2cpu(xs1)
+    # ys1 = convert2cpu(ys1)
+    # xs2 = convert2cpu(xs2)
+    # ys2 = convert2cpu(ys2)
+    # xs3 = convert2cpu(xs3)
+    # ys3 = convert2cpu(ys3)
+    # xs4 = convert2cpu(xs4)
+    # ys4 = convert2cpu(ys4)
+    # xs5 = convert2cpu(xs5)
+    # ys5 = convert2cpu(ys5)
+    # xs6 = convert2cpu(xs6)
+    # ys6 = convert2cpu(ys6)
+    # xs7 = convert2cpu(xs7)
+    # ys7 = convert2cpu(ys7)
+    # xs8 = convert2cpu(xs8)
+    # ys8 = convert2cpu(ys8)
+    #if validation:
+        #cls_confs = convert2cpu(cls_confs.view(-1, num_classes))
     t2 = time.time()
 
     # Boxes filter
@@ -472,8 +527,9 @@ def get_region_boxes(output, conf_thresh, num_classes, only_objectness=1, valida
 
         all_boxes.append(boxes)
     t3 = time.time()
-    if False:
+    if True:
         print('---------------------------------')
+        print('gpu to cpu for numpy : %f' % (t0-t0minus))
         print('matrix computation : %f' % (t1-t0))
         print('        gpu to cpu : %f' % (t2-t1))
         print('      boxes filter : %f' % (t3-t2))
@@ -950,20 +1006,26 @@ def do_detect(model, img, conf_thresh, nms_thresh, use_cuda=1):
 
     output = model(img)
     output = output.data
+    print('model output shape ', output.size())
     #for j in range(100):
     #    sys.stdout.write('%f ' % (output.storage()[j]))
     #print('')
     t3 = time.time()
 
-    boxes = get_region_boxes(output, conf_thresh, model.num_classes, model.anchors, model.num_anchors)[0]
+    #output = output.cpu().numpy();
+    num_classes = 1
+    # model.anchors = [0.1067, 0.9223]
+    # model.num_anchors = 1
+    boxes = get_region_boxes(output, conf_thresh, num_classes)[0]
     #for j in range(len(boxes)):
     #    print(boxes[j])
     t4 = time.time()
 
     boxes = nms(boxes, nms_thresh)
+
     t5 = time.time()
 
-    if False:
+    if True:
         print('-----------------------------------')
         print(' image to tensor : %f' % (t1 - t0))
         print('  tensor to cuda : %f' % (t2 - t1))
@@ -973,6 +1035,107 @@ def do_detect(model, img, conf_thresh, nms_thresh, use_cuda=1):
         print('           total : %f' % (t5 - t0))
         print('-----------------------------------')
     return boxes
+
+def do_detect_trt(context, img, conf_thresh, nms_thresh, bindings, inputs, outputs, stream, use_cuda=1):
+    #model.eval()
+    t0 = time.time()
+
+    if isinstance(img, Image.Image):
+        width = img.width
+        height = img.height
+        img = torch.ByteTensor(torch.ByteStorage.from_buffer(img.tobytes()))
+        img = img.view(height, width, 3).transpose(0,1).transpose(0,2).contiguous()
+        img = img.view(1, 3, height, width)
+        img = img.float().div(255.0)
+    elif type(img) == np.ndarray: # cv2 image
+        img = torch.from_numpy(img.transpose(2,0,1)).float().div(255.0).unsqueeze(0)
+        img = img
+    else:
+        print("unknow image type")
+        exit(-1)
+
+    t1 = time.time()
+
+    # if use_cuda:
+    #     img = img.cuda()
+    # img = torch.autograd.Variable(img)
+    t2 = time.time()
+
+    inputs[0].host = img.numpy()
+    trt_outputs = []
+    trt_outputs = common.do_inference(context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream)
+    trt_outputs = array(trt_outputs).reshape(1,20,13,13)
+    #output = model(img)
+    #output = output.data
+    print('model output shape ', trt_outputs.shape)
+    #for j in range(100):
+    #    sys.stdout.write('%f ' % (output.storage()[j]))
+    #print('')
+    t3 = time.time()
+
+    #output = output.cpu().numpy();
+    # model.num_classes = 1
+    # model.anchors = model.anchors = [0.1067, 0.9223]
+    # model.num_anchors = 1
+    num_classes = 1
+    boxes = get_region_boxes(trt_outputs, conf_thresh, num_classes)[0]
+    #for j in range(len(boxes)):
+    #    print(boxes[j])
+    t4 = time.time()
+
+    boxes = nms(boxes, nms_thresh)
+
+    t5 = time.time()
+
+    if True:
+        print('-----------------------------------')
+        print(' image to tensor : %f' % (t1 - t0))
+        print('  tensor to cuda : %f' % (t2 - t1))
+        print('         predict : %f' % (t3 - t2))
+        print('get_region_boxes : %f' % (t4 - t3))
+        print('             nms : %f' % (t5 - t4))
+        print('           total : %f' % (t5 - t0))
+        print('-----------------------------------')
+    return boxes
+
+def get_engine(onnx_file_path, engine_file_path=""):
+    """Attempts to load a serialized engine if available, otherwise builds a new TensorRT engine and saves it."""
+    def build_engine():
+        """Takes an ONNX file and creates a TensorRT engine to run inference with"""
+        with trt.Builder(TRT_LOGGER) as builder, builder.create_network() as network, trt.OnnxParser(network, TRT_LOGGER) as parser:
+            builder.max_workspace_size = 1 << 31 # 1GB
+            builder.max_batch_size = 1
+            # Parse model file
+            if not os.path.exists(onnx_file_path):
+                print('ONNX file {} not found, please run yolov3_to_onnx.py first to generate it.'.format(onnx_file_path))
+                exit(0)
+            print('Loading ONNX file from path {}...'.format(onnx_file_path))
+            with open(onnx_file_path, 'rb') as model:
+                print('Beginning ONNX file parsing')
+                parser.parse(model.read())
+            print('Completed parsing of ONNX file')
+            print('Building an engine from file {}; this may take a while...'.format(onnx_file_path))
+            engine = builder.build_cuda_engine(network)
+            print("Completed creating Engine")
+            with open(engine_file_path, "wb") as f:
+                f.write(engine.serialize())
+            return engine
+
+    if os.path.exists(engine_file_path):
+        # If a serialized engine exists, use it instead of building an engine.
+        print("Reading engine from file {}".format(engine_file_path))
+        with open(engine_file_path, "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
+            return runtime.deserialize_cuda_engine(f.read())
+    else:
+        return build_engine()
+
+
+def preprosess_img(img_path):
+    frame = cv2.imread(img_path,0)
+    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    yolo_img =cv2.resize(img, (416, 416), interpolation=cv2.INTER_AREA)
+    plt.imshow(img)
+    return yolo_img
 
 def read_data_cfg(datacfg):
     options = dict()

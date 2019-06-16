@@ -43,7 +43,7 @@ def valid(datacfg, cfgfile, weightfile, outfile):
     if use_cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = gpus
         torch.cuda.manual_seed(seed)
-    save            = False
+    save            = True
     testtime        = True
     use_cuda        = True
     num_classes     = 1
@@ -77,7 +77,9 @@ def valid(datacfg, cfgfile, weightfile, outfile):
     # Read object model information, get 3D bounding box corners
     mesh          = MeshPly(meshname)
     vertices      = np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose()
+    print('vertices', vertices)
     corners3D     = get_3D_corners(vertices)
+    print('corners3D', corners3D)
     # diam          = calc_pts_diameter(np.array(mesh.vertices))
     diam          = float(options['diam'])
 
@@ -135,7 +137,7 @@ def valid(datacfg, cfgfile, weightfile, outfile):
 
         # Iterate through all images in the batch
         for i in range(output.size(0)):
-        
+            print('output.size(0) is ', output.size(0))
             # For each image, get all the predictions
             boxes   = all_boxes[i]
         
@@ -162,10 +164,10 @@ def valid(datacfg, cfgfile, weightfile, outfile):
                 # Denormalize the corner predictions 
                 corners2D_gt = np.array(np.reshape(box_gt[:18], [9, 2]), dtype='float32')
                 corners2D_pr = np.array(np.reshape(box_pr[:18], [9, 2]), dtype='float32')
-                corners2D_gt[:, 0] = corners2D_gt[:, 0] * 640
-                corners2D_gt[:, 1] = corners2D_gt[:, 1] * 480               
-                corners2D_pr[:, 0] = corners2D_pr[:, 0] * 640
-                corners2D_pr[:, 1] = corners2D_pr[:, 1] * 480
+                corners2D_gt[:, 0] = corners2D_gt[:, 0] * 1280
+                corners2D_gt[:, 1] = corners2D_gt[:, 1] * 720               
+                corners2D_pr[:, 0] = corners2D_pr[:, 0] * 1280
+                corners2D_pr[:, 1] = corners2D_pr[:, 1] * 720
                 preds_corners2D.append(corners2D_pr)
                 gts_corners2D.append(corners2D_gt)
 
