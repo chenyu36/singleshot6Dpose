@@ -1,1 +1,1 @@
-CUDA_LAUNCH_BLOCKING=1 python3 inference.py cfg/cargo.data cfg/yolo-pose.cfg backup/cargo/model_backup.weights
+CUDA_LAUNCH_BLOCKING=1 python3 inference.py cfg/cargo.data cfg/yolo-pose.cfg backup/cargo/c920_cam/model.weights

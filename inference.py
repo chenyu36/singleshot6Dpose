@@ -8,7 +8,9 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 import scipy.io
 import warnings
+import time
 warnings.filterwarnings("ignore")
+
 
 from darknet import Darknet
 import dataset
@@ -118,30 +120,40 @@ def detect_video(model, args):
 
     return
 
+def find_pt_with_smallest_y(pts):
+    ymin = 10000
+    ymin_pt = (0, 0)
+    # get the x of center point which has the index 0
+    x = pts[0][0]
+    for pt in pts:
+        y = pt[1]
+        if y < ymin:
+            ymin = y
+            ymin_pt = (x, pt[1])
+    return ymin_pt
+
 def draw_cube(img, pts):
     if len(pts)==9:
         
         thickness = 2
-        # front face
-        color = (0,255,0)
+        # rear face
+        r = (0,0,255)
+        g = (0,255,0)
+        b = (255,0,0)
+        color = r
         cv2.line(img,pts[2],pts[4],color,thickness)
         cv2.line(img,pts[4],pts[8],color,thickness)
         cv2.line(img,pts[8],pts[6],color,thickness)
         cv2.line(img,pts[6],pts[2],color,thickness)
         # left face
-        color = (255,0,0)
-        # cv2.line(img,pts[1],pts[2],color,thickness)
-        # cv2.line(img,pts[2],pts[3],color,thickness)
-        # cv2.line(img,pts[3],pts[4],color,thickness)
-        # cv2.line(img,pts[4],pts[1],color,thickness)
+        color = b
+        cv2.line(img,pts[1],pts[2],color,thickness)
+        cv2.line(img,pts[3],pts[4],color,thickness)
         # right face
-        color = (255,0,0)
-        # cv2.line(img,pts[5],pts[6],color,thickness)
-        # cv2.line(img,pts[6],pts[7],color,thickness)
-        # cv2.line(img,pts[7],pts[8],color,thickness)
-        # cv2.line(img,pts[8],pts[5],color,thickness)
-        # back face
-        color = (0,0,255)
+        cv2.line(img,pts[5],pts[6],color,thickness)
+        cv2.line(img,pts[7],pts[8],color,thickness)
+        # front face
+        color = g
         cv2.line(img,pts[1],pts[5],color,thickness)
         cv2.line(img,pts[5],pts[7],color,thickness)
         cv2.line(img,pts[7],pts[3],color,thickness)
@@ -152,12 +164,11 @@ def makedirs(path):
     if not os.path.exists( path ):
         os.makedirs( path )
 
-def are_corners_valid(corners, thresh):
-    y_dispay_thresh = thresh
+def are_corners_greater_than_y_thres(corners, y_thresh):
     for corner in corners:
         x = corner[0]
         y = corner[1]
-        if y <= y_dispay_thresh:
+        if y <= y_thresh:
             return False
     return True
 
@@ -194,13 +205,17 @@ def valid(datacfg, cfgfile, weightfile, outfile):
     testing_samples = 0.0
     eps             = 1e-5
     notpredicted    = 0 
-    conf_thresh     = 0.12
+    conf_thresh     = 0.1
     nms_thresh      = 0.5 # was 0.4
     match_thresh    = 0.5
-    y_dispay_thresh = 100
+    y_dispay_thresh = 144
     # Try to load a previously generated yolo network graph in ONNX format:
-    onnx_file_path = './cargo_yolo2.onnx'
-    engine_file_path = './cargo_yolo2.trt'
+    #onnx_file_path = './cargo_yolo2.onnx'
+    #engine_file_path = './cargo_yolo2.trt'
+    #onnx_file_path = './cargo_yolo2_c920_cam.onnx'
+    #engine_file_path = './cargo_yolo2_c920_cam.trt'
+    onnx_file_path = './cargo_yolo2_c920_cam_83percent.onnx'
+    engine_file_path = './cargo_yolo2_c920_cam_83percent.trt'
 
     if save:
         makedirs(backupdir + '/test')
@@ -230,6 +245,7 @@ def valid(datacfg, cfgfile, weightfile, outfile):
 
     # Read intrinsic camera parameters
     internal_calibration = get_camera_intrinsic()
+    dist = get_camera_distortion_mat()
 
     # Get validation file names
     with open(valid_images) as fp:
@@ -276,6 +292,7 @@ def valid(datacfg, cfgfile, weightfile, outfile):
             if retflag:
                 #resize_frame = cv2.resize(frame, (416, 416), interpolation = cv2.INTER_AREA)
                 img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img = cv2.undistort(img, internal_calibration, dist, None, internal_calibration)
                 yolo_img =cv2.resize(img, (416, 416), interpolation=cv2.INTER_AREA)
                 box_pr_multi = do_detect_trt(context, yolo_img, conf_thresh, nms_thresh, bindings, inputs, outputs, stream)
 
@@ -291,26 +308,43 @@ def valid(datacfg, cfgfile, weightfile, outfile):
                     corner2d_pr_vertices = []
                     index = 0
 
-                    # draw corner vertices
-                    for pt in corners2D_pr:
-                        # print('corners2D_pr', pt)
-                        x = pt[0]
-                        y = pt[1]
-                        pt =(x, y)
-                        if y > y_dispay_thresh:
-                            cv2.circle(frame, pt, 2, (0, 255, 0), thickness=2, lineType=8, shift=0)
-                            font = cv2.FONT_HERSHEY_SIMPLEX
-                            color = (255, 255, 255)
-                            cv2.putText(frame, str(index), pt, font, 1, color, 2, lineType=8)
-                            # skip the centroid, we only want the vertices
-                            corner2d_pr_vertices.append(pt)
-                        index = index + 1
-                    # those at the top of the frame are not valid
-                    if not corner2d_pr_vertices == None and are_corners_valid(corner2d_pr_vertices, y_dispay_thresh):
+                    # not an empty array, AND, all corners are beyond a y threshold
+                    if (corners2D_pr.size > 0) and are_corners_greater_than_y_thres(corners2D_pr, y_dispay_thresh):
+                        ymin_pt = find_pt_with_smallest_y(corners2D_pr)
+                        pt_for_label1= (int(ymin_pt[0]-30), int(ymin_pt[1]-30))
+                        pt_for_label2 = (int(ymin_pt[0]-50), int(ymin_pt[1]-10))
+                        for pt in corners2D_pr:
+                            # print('corners2D_pr', pt)
+                            x = pt[0]
+                            y = pt[1]
+                            pt =(x, y)
+                            if y > y_dispay_thresh:
+                                white = (255, 255, 255)
+                                cv2.circle(frame, pt, 2, white, thickness=2, lineType=8, shift=0)
+                                font = cv2.FONT_HERSHEY_SIMPLEX
+                                color = (255, 255, 255)
+                                font_scale = 0.6
+                                pt_for_number = (int(x+5), int(y-5))
+                                # only print the center point (index 0)
+                                if index == 0:
+                                    cv2.putText(frame, str(index), pt_for_number, font, font_scale, color, 2, lineType=8)
+                                # skip the centroid, we only want the vertices
+                                corner2d_pr_vertices.append(pt)
+
+                                
+                            index = index + 1
+                        blue = (255,0,0)
+                        # print x offset and z offset (depth) above the smallest y point
+                        x = float(t_pr[0])
+                        x_cord = 'x ' + str("{0:.2f}".format(x)) + 'm'
+                        cv2.putText(frame, x_cord, pt_for_label1, font, font_scale, blue, 2, lineType=8)
+                        z = float(t_pr[2])
+                        z_cord = 'Depth ' + str("{0:.2f}".format(z)) + 'm'
+                        cv2.putText(frame, z_cord, pt_for_label2, font, font_scale, blue, 2, lineType=8) 
                         draw_cube(frame, corner2d_pr_vertices)
                         # if z is less than zero; i.e. away from camera
                         if (t_pr[2] < 0):
-                            print('x ', t_pr[0], 'y ', t_pr[1], 'z ', t_pr[2])
+                            print('x ', round(float(t_pr[0]), 2), 'y ', round(float(t_pr[1]), 2), 'z ', round(float(t_pr[2]), 2))
 
                 if save:
                     preds_trans.append(t_pr)
@@ -325,9 +359,19 @@ def valid(datacfg, cfgfile, weightfile, outfile):
                     transform_3d_pred = compute_transformation(vertices, Rt_pr)  
                     vertex_dist       = np.mean(norm3d)
 
-                cv2.imshow('frame', frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
+
+                cv2.imshow('6D pose estimation', frame)
+                detectedKey = cv2.waitKey(1) & 0xFF
+                if detectedKey == ord('c'):
+                    timestamp = time.time()
+                    cv2.imwrite('./screenshots/screeshot' + str(timestamp) + '.jpg', frame)
+                    print('captured screeshot')
+                elif detectedKey == ord('q'):
+                    print('quitting program')
                     break
+
+                # if cv2.waitKey(1) & 0xFF == ord('q'):
+                #     break
 
                 t5 = time.time()
             else:

@@ -47,10 +47,20 @@ def calcAngularDistance(gt_rot, pr_rot):
 
 def get_camera_intrinsic():
     K = np.zeros((3, 3), dtype='float64')
-    K[0, 0], K[0, 2] = 1.13908155e+03, 6.57642892e+02
-    K[1, 1], K[1, 2] = 1.13705701e+03, 3.28071843e+02
+    # life came
+    # K[0, 0], K[0, 2] = 1.13908155e+03, 6.57642892e+02
+    # K[1, 1], K[1, 2] = 1.13705701e+03, 3.28071843e+02
+    # K[2, 2] = 1.
+
+    # Logitech C920
+    K[0, 0], K[0, 2] = 935.67, 624.06
+    K[1, 1], K[1, 2] = 934.86, 354.35
     K[2, 2] = 1.
     return K
+
+def get_camera_distortion_mat():
+    dist = [[-0.00580032, -0.17520014, 0.00051201, 0.00432754, 0.24850474]]
+    return np.array(dist)
 
 def compute_projection(points_3D, transformation, internal_calibration):
     projections_2d = np.zeros((2, points_3D.shape[1]), dtype='float32')
