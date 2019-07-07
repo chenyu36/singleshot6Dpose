@@ -337,10 +337,22 @@ def valid(datacfg, cfgfile, weightfile, outfile):
                         # print x offset and z offset (depth) above the smallest y point
                         x = float(t_pr[0])
                         x_cord = 'x ' + str("{0:.2f}".format(x)) + 'm'
-                        cv2.putText(frame, x_cord, pt_for_label1, font, font_scale, blue, 2, lineType=8)
+                        white = (255,255,255)
+                        
+                        x1 = pt_for_label1[0]
+                        y1 = pt_for_label1[1]
+                        purple = (132,37,78)
+                        #cv2.rectangle(frame, (x1, y1-20), (x1+len(x_cord)*19+60,y1), purple, -1)
+                        
+
                         z = float(t_pr[2])
                         z_cord = 'Depth ' + str("{0:.2f}".format(z)) + 'm'
-                        cv2.putText(frame, z_cord, pt_for_label2, font, font_scale, blue, 2, lineType=8) 
+                        
+                        x2 = pt_for_label2[0]
+                        y2 = pt_for_label2[1]                        
+                        cv2.rectangle(frame, (x2-5, y2-20*2), (x2+len(z_cord)*12,y2+5), purple, -1)
+                        cv2.putText(frame, x_cord, pt_for_label1, font, font_scale, white, 1, lineType=8)
+                        cv2.putText(frame, z_cord, pt_for_label2, font, font_scale, white, 1, lineType=8)
                         draw_cube(frame, corner2d_pr_vertices)
                         # if z is less than zero; i.e. away from camera
                         if (t_pr[2] < 0):
