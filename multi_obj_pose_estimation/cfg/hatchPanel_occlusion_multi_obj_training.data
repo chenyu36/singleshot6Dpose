@@ -1,0 +1,6 @@
+valid  = ../FRC2019/hatchPanel/test_occlusion.txt
+mesh = ../FRC2019/hatchPanel/hatchPanel.ply
+backup = ./backup_multi
+name = hatchPanel
+diam = 0.49
+

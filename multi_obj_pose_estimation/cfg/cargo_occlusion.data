@@ -1,0 +1,6 @@
+valid  = FRC2019/cargo/test_occlusion.txt
+mesh = FRC2019/cargo/cargo.ply
+backup = backup_multi
+name = cargo
+diam = 0.33
+

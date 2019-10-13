@@ -1,0 +1,6 @@
+train  = ../FRC2019/brownGlyph/train.txt
+valid  = ../FRC2019/brownGlyph/test.txt
+backup = ./backup_multi/
+mesh = ../FRC2019/brownGlyph/brownGlyph.ply
+name = brownGlyph
+diam = 0.263964
