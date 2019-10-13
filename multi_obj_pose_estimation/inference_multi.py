@@ -61,7 +61,9 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
     corners3D.append(get_3D_corners(vertices[2]))
     diam          = float(options['diam'])
 
-
+    #define the paths to tensorRT models 
+    onnx_file_path = './trt_models/multi_objs/multiobj_cargo_59_hatchPanel_75.onnx'
+    engine_file_path = './trt_models/multi_objs/multiobj_cargo_59_hatchPanel_75.trt'
     # Read intrinsic camera parameters
     internal_calibration = get_camera_intrinsic()
     dist = get_camera_distortion_mat()
@@ -72,10 +74,11 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
         valid_files = [item.rstrip() for item in tmp_files]
     
     # Specicy model, load pretrained weights, pass to GPU and set the module in evaluation mode
-    model = Darknet(cfgfile)
-    model.load_weights(weightfile)
-    model.cuda()
-    model.eval()
+    # comment out since we are loading TRT model using get_engine() function
+    # model = Darknet(cfgfile)
+    # model.load_weights(weightfile)
+    # model.cuda()
+    # model.eval()
     model_input_size = [416, 416]
     test_width = 416
     test_height = 416
@@ -86,19 +89,11 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS)
-    # Get the parser for the test dataset
-    valid_dataset = dataset_multi.listDataset(valid_images, shape=(test_width, test_height),
-                       shuffle=False,
-                       objclass=name,
-                       transform=transforms.Compose([
-                           transforms.ToTensor(),
-                       ]))
-    valid_batchsize = 1
+
 
     # Specify the number of workers for multiple processing, get the dataloader for the test dataset
     kwargs = {'num_workers': 1, 'pin_memory': True}
-    test_loader = torch.utils.data.DataLoader(
-        valid_dataset, batch_size=valid_batchsize, shuffle=False, **kwargs) 
+
 
     # Parameters
     use_cuda        = True
@@ -118,96 +113,96 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
 
     # Iterate through test batches (Batch size for test data is 1)
     #logging('Testing {}...'.format(name))
+    with get_engine(onnx_file_path, engine_file_path) as engine, engine.create_execution_context() as context:
+        inputs, outputs, bindings, stream = common.allocate_buffers(engine)
+        while cap.isOpened():
+            retflag, frame = cap.read() 
+            if retflag:
+                img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img = cv2.undistort(img, internal_calibration, dist, None, internal_calibration)
+                yolo_img =cv2.resize(img, (416, 416), interpolation=cv2.INTER_AREA)
 
-    while cap.isOpened():
-        retflag, frame = cap.read() 
-        if retflag:
-            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img = cv2.undistort(img, internal_calibration, dist, None, internal_calibration)
-            yolo_img =cv2.resize(img, (416, 416), interpolation=cv2.INTER_AREA)
+                all_boxes = []
+                output = []
+                #all_boxes = do_detect_multi_v3(model, yolo_img, conf_thresh, nms_thresh)
 
-            num_gts = 3
-            all_boxes = []
-            output = []
-            #all_boxes = do_detect_multi_v3(model, yolo_img, conf_thresh, nms_thresh)
-
-
-            detection_result = do_detect_multi_v2(model, yolo_img, conf_thresh, nms_thresh)
-            
-            for i in range(num_gts):
-                correspondingclass = i
-                # experiment: chris
-                # override the default confidence threshold
-                conf_thresh = 0.20
-                boxes = get_corresponding_region_boxes(detection_result, conf_thresh, model.num_classes, model.anchors, model.num_anchors, correspondingclass, only_objectness=1, validation=True)[0]
-                boxes = nms_multi_v2(boxes, nms_thresh)
-                all_boxes.append(boxes)
-    
-
-            # debug: print all the detected box's class
-            for box in all_boxes:
-                if debug_multi_boxes:
-                    print('box\n', box)
-                    print('box cluster')
-                for i in range(len(box)):
-                    print('box class ', int(box[i][20]), ' confidence ', "{0:.2f}".format(float(box[i][18])))     
-
-            # all_boxes = nms_multi(all_boxes, nms_thresh)
-            
-            for boxes in all_boxes:
-
-                # For each image, get all the predictions
-
-                #boxes   = all_boxes[i][0]
-                #correspondingclass = i + 1            
-                best_conf_est = -1
+                #detection_result = do_detect_multi_v2(model, yolo_img, conf_thresh, nms_thresh)
+                all_boxes = do_detect_trt_multi(context, yolo_img, conf_thresh, nms_thresh, num_classes, anchors, num_anchors, bindings, inputs, outputs, stream)
                 
+                # for i in range(num_classes):
+                #     correspondingclass = i
+                #     # experiment: chris
+                #     # override the default confidence threshold
+                #     conf_thresh = 0.20
+                #     boxes = get_corresponding_region_boxes(detection_result, conf_thresh, model.num_classes, model.anchors, model.num_anchors, correspondingclass, only_objectness=1, validation=True)[0]
+                #     boxes = nms_multi_v2(boxes, nms_thresh)
+                #     all_boxes.append(boxes)
+        
 
-                # If the prediction has the highest confidence, choose it as our prediction
+                # debug: print all the detected box's class
+                for box in all_boxes:
+                    if debug_multi_boxes:
+                        print('box\n', box)
+                        print('box cluster')
+                    for i in range(len(box)):
+                        print('box class ', int(box[i][20]), ' confidence ', "{0:.2f}".format(float(box[i][18])))     
 
-                    # if (boxes[18] > best_conf_est) and (boxes[20] == correspondingclass):
-                    #     best_conf_est = boxes[18]
-                    #     box_pr        = boxes
-                    #     bb2d_pr       = get_2d_bb(box_pr[:18], output.size(3))
-                #print('checking class ', boxes[20])
-                for i in range(num_classes):
-                    correspondingclass = i
-                    for j in range(len(boxes)):
- 
-                        if (boxes[j][18] > 0.20) and (boxes[j][20] == correspondingclass):
-                            print('detected obj class is ', correspondingclass)
-                            box_pr        = boxes[j]
+                # all_boxes = nms_multi(all_boxes, nms_thresh)
+                
+                for boxes in all_boxes:
 
-                            # Denormalize the corner predictions 
-                            corners2D_pr = np.array(np.reshape(box_pr[:18], [9, 2]), dtype='float32')
+                    # For each image, get all the predictions
+
+                    #boxes   = all_boxes[i][0]
+                    #correspondingclass = i + 1            
+                    best_conf_est = -1
+                    
+
+                    # If the prediction has the highest confidence, choose it as our prediction
+
+                        # if (boxes[18] > best_conf_est) and (boxes[20] == correspondingclass):
+                        #     best_conf_est = boxes[18]
+                        #     box_pr        = boxes
+                        #     bb2d_pr       = get_2d_bb(box_pr[:18], output.size(3))
+                    #print('checking class ', boxes[20])
+                    for i in range(num_classes):
+                        correspondingclass = i
+                        for j in range(len(boxes)):
+     
+                            if (boxes[j][18] > conf_thresh) and (boxes[j][20] == correspondingclass):
+                                print('detected obj class is ', correspondingclass)
+                                box_pr        = boxes[j]
+
+                                # Denormalize the corner predictions 
+                                corners2D_pr = np.array(np.reshape(box_pr[:18], [9, 2]), dtype='float32')
+                                
+                                corners2D_pr[:, 0] = corners2D_pr[:, 0] * 1280
+                                corners2D_pr[:, 1] = corners2D_pr[:, 1] * 720
+                                # Compute [R|t] by pnp
+                                objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[i][:3, :]), axis=1)), dtype='float32')
+                                K = np.array(internal_calibration, dtype='float32')
+
+                                R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
                             
-                            corners2D_pr[:, 0] = corners2D_pr[:, 0] * 1280
-                            corners2D_pr[:, 1] = corners2D_pr[:, 1] * 720
-                            # Compute [R|t] by pnp
-                            objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[i][:3, :]), axis=1)), dtype='float32')
-                            K = np.array(internal_calibration, dtype='float32')
+                                # Compute pixel error
 
-                            R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
-                        
-                            # Compute pixel error
+                                # Rt_pr        = np.concatenate((R_pr, t_pr), axis=1)
 
-                            # Rt_pr        = np.concatenate((R_pr, t_pr), axis=1)
+                                # proj_2d_pred = compute_projection(vertices[i], Rt_pr, internal_calibration) 
 
-                            # proj_2d_pred = compute_projection(vertices[i], Rt_pr, internal_calibration) 
+                                # proj_corners_pr = np.transpose(compute_projection(corners3D[i], Rt_pr, internal_calibration))
 
-                            # proj_corners_pr = np.transpose(compute_projection(corners3D[i], Rt_pr, internal_calibration))
+                                draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh)
 
-                            draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh)
-
-            cv2.imshow('6D pose estimation - multi-objects', frame)
-            detectedKey = cv2.waitKey(1) & 0xFF
-            if detectedKey == ord('c'):
-                timestamp = time.time()
-                cv2.imwrite('./screenshots/screeshot' + str(timestamp) + '.jpg', frame)
-                print('captured screeshot')
-            elif detectedKey == ord('q'):
-                print('quitting program')
-                break
+                cv2.imshow('6D pose estimation - multi-objects', frame)
+                detectedKey = cv2.waitKey(1) & 0xFF
+                if detectedKey == ord('c'):
+                    timestamp = time.time()
+                    cv2.imwrite('./screenshots/screeshot' + str(timestamp) + '.jpg', frame)
+                    print('captured screeshot')
+                elif detectedKey == ord('q'):
+                    print('quitting program')
+                    break
 
 def are_corners_greater_than_y_thres(corners, y_thresh):
     for corner in corners:
@@ -332,7 +327,7 @@ if __name__ == '__main__' and __package__ is None:
     import sys
     print(sys.argv)
     if len(sys.argv) == 3:
-        conf_th = 0.50
+        conf_th = 0.2
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
         #class number = 0

@@ -852,12 +852,16 @@ def get_region_boxes_multi(output, conf_thresh, num_classes, anchors, num_anchor
     return all_boxes
 
 def get_corresponding_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, correspondingclass, only_objectness=1, validation=False):
-    
+    debug = True
     # Parameters
     anchor_step = len(anchors)//num_anchors
     if output.dim() == 3:
         output = output.unsqueeze(0)
     batch = output.size(0)
+
+    if debug:
+        print('output.size(1) ', output.size(1) )
+        print('(19+num_classes)*num_anchors)', (19+num_classes)*num_anchors)
     assert(output.size(1) == (19+num_classes)*num_anchors)
     h = output.size(2)
     w = output.size(3)
@@ -1012,6 +1016,192 @@ def get_corresponding_region_boxes(output, conf_thresh, num_classes, anchors, nu
         print('---------------------------------')
     return all_boxes
 
+def get_corresponding_region_boxes_trt(output, conf_thresh, num_classes, anchors, num_anchors, correspondingclass, only_objectness=1, validation=False):
+    
+    t0minus = time.time()
+    # Parameters
+
+    #if output.dim() == 3:
+    if output.shape == 3:    
+        output = output.unsqueeze(0) #TODO
+    batch = output.shape[0]
+    assert(output.shape[1] == (19+num_classes)*num_anchors)
+    h = output.shape[2]
+    w = output.shape[3]
+
+    # Activation
+    t0 = time.time()
+    all_boxes = []
+    max_conf = -100000
+    max_cls_conf = -100000
+    #output    = output.view(batch*num_anchors, 19+num_classes, h*w).transpose(0,1).contiguous().view(19+num_classes, batch*num_anchors*h*w)
+    output = output.reshape(batch*num_anchors, 19+num_classes, h*w)#.transpose(0,1).ascontiguousarray(output)
+    #print('reshaped output numpy has shape ',output.shape)
+    output = np.transpose(output, (1,0,2))
+    #print('reshaped output numpy has shape ',output.shape)
+    output = np.ascontiguousarray(output)
+    #print('reshaped output numpy has shape ',output.shape)   
+    
+    output = output.reshape(19+num_classes, batch*num_anchors*h*w)
+    #grid_x    = torch.linspace(0, w-1, w).repeat(h,1).repeat(batch*num_anchors, 1, 1).view(batch*num_anchors*h*w).cuda()
+    temp_x = np.linspace(0, w-1, w)
+    temp_x = np.tile(temp_x, (h,1))
+    temp_x = np.tile(temp_x, (batch*num_anchors, 1, 1))
+    grid_x    = temp_x.reshape(batch*num_anchors*h*w)
+    #grid_y    = torch.linspace(0, h-1, h).repeat(w,1).t().repeat(batch*num_anchors, 1, 1).view(batch*num_anchors*h*w).cuda()
+    temp_y = np.linspace(0, h-1, h)
+    temp_y = np.tile(temp_y,(w,1))
+    temp_y = np.transpose(temp_y, (1,0))
+    grid_y = np.tile(temp_y, (batch*num_anchors, 1, 1)).reshape(batch*num_anchors*h*w)
+
+
+    # define vectorized sigmoid
+    sigmoid_v = np.vectorize(sigmoid)
+    xs0       = sigmoid_v(output[0]) + grid_x
+    ys0       = sigmoid_v(output[1]) + grid_y
+    xs1       = output[2] + grid_x
+    ys1       = output[3] + grid_y
+    xs2       = output[4] + grid_x
+    ys2       = output[5] + grid_y
+    xs3       = output[6] + grid_x
+    ys3       = output[7] + grid_y
+    xs4       = output[8] + grid_x
+    ys4       = output[9] + grid_y
+    xs5       = output[10] + grid_x
+    ys5       = output[11] + grid_y
+    xs6       = output[12] + grid_x
+    ys6       = output[13] + grid_y
+    xs7       = output[14] + grid_x
+    ys7       = output[15] + grid_y
+    xs8       = output[16] + grid_x
+    ys8       = output[17] + grid_y
+    det_confs = sigmoid_v(output[18])
+    output_transpose = np.transpose(output[19:19+num_classes], (1,0))
+    cls_confs = softmax(output_transpose)
+    #cls_max_confs, cls_max_ids = torch.max(cls_confs, 1)
+    cls_max_ids = np.argmax(cls_confs, 1)
+    cls_max_confs = np.amax(cls_confs, 1)
+    cls_max_confs = cls_max_confs.reshape(-1)
+    cls_max_ids   = cls_max_ids.reshape(-1)
+    t1 = time.time()
+    
+    # GPU to CPU
+    sz_hw = h*w
+    sz_hwa = sz_hw*num_anchors
+    #det_confs = convert2cpu(det_confs)
+    #cls_max_confs = convert2cpu(cls_max_confs)
+    #cls_max_ids = convert2cpu_long(cls_max_ids)
+    #xs0 = convert2cpu(xs0)
+    #ys0 = convert2cpu(ys0)
+    #xs1 = convert2cpu(xs1)
+    #ys1 = convert2cpu(ys1)
+    #xs2 = convert2cpu(xs2)
+    #ys2 = convert2cpu(ys2)
+    #xs3 = convert2cpu(xs3)
+    #ys3 = convert2cpu(ys3)
+    #xs4 = convert2cpu(xs4)
+    #ys4 = convert2cpu(ys4)
+    #xs5 = convert2cpu(xs5)
+    #ys5 = convert2cpu(ys5)
+    #xs6 = convert2cpu(xs6)
+    #ys6 = convert2cpu(ys6)
+    #xs7 = convert2cpu(xs7)
+    #ys7 = convert2cpu(ys7)
+    #xs8 = convert2cpu(xs8)
+    #ys8 = convert2cpu(ys8)
+    #if validation:
+    #    cls_confs = convert2cpu(cls_confs.view(-1, num_classes))
+    t2 = time.time()
+
+    # Boxes filter
+    for b in range(batch):
+        boxes = []
+        max_conf = -1
+        for cy in range(h):
+            for cx in range(w):
+                for i in range(num_anchors):
+                    ind = b*sz_hwa + i*sz_hw + cy*w + cx
+                    det_conf =  det_confs[ind]
+                    if only_objectness:
+                        conf = det_confs[ind]
+                    else:
+                        conf = det_confs[ind] * cls_max_confs[ind]
+                    
+                    if (det_confs[ind] > max_conf) and (cls_confs[ind, correspondingclass] > max_cls_conf):
+                        max_conf = det_confs[ind]
+                        max_cls_conf = cls_confs[ind, correspondingclass]
+                        max_ind = ind                  
+    
+                    if conf > conf_thresh:
+                        bcx0 = xs0[ind]
+                        bcy0 = ys0[ind]
+                        bcx1 = xs1[ind]
+                        bcy1 = ys1[ind]
+                        bcx2 = xs2[ind]
+                        bcy2 = ys2[ind]
+                        bcx3 = xs3[ind]
+                        bcy3 = ys3[ind]
+                        bcx4 = xs4[ind]
+                        bcy4 = ys4[ind]
+                        bcx5 = xs5[ind]
+                        bcy5 = ys5[ind]
+                        bcx6 = xs6[ind]
+                        bcy6 = ys6[ind]
+                        bcx7 = xs7[ind]
+                        bcy7 = ys7[ind]
+                        bcx8 = xs8[ind]
+                        bcy8 = ys8[ind]
+                        cls_max_conf = cls_max_confs[ind]
+                        cls_max_id = cls_max_ids[ind]
+                        box = [bcx0/w, bcy0/h, bcx1/w, bcy1/h, bcx2/w, bcy2/h, bcx3/w, bcy3/h, bcx4/w, bcy4/h, bcx5/w, bcy5/h, bcx6/w, bcy6/h, bcx7/w, bcy7/h, bcx8/w, bcy8/h, det_conf, cls_max_conf, cls_max_id]
+                        if (not only_objectness) and validation:
+                            for c in range(num_classes):
+                                tmp_conf = cls_confs[ind][c]
+                                if c != cls_max_id and det_confs[ind]*tmp_conf > conf_thresh:
+                                    box.append(tmp_conf)
+                                    box.append(c)
+                        boxes.append(box)
+        boxesnp = np.array(boxes)
+        if (len(boxes) == 0) or (not (correspondingclass in boxesnp[:,20])):
+            bcx0 = xs0[max_ind]
+            bcy0 = ys0[max_ind]
+            bcx1 = xs1[max_ind]
+            bcy1 = ys1[max_ind]
+            bcx2 = xs2[max_ind]
+            bcy2 = ys2[max_ind]
+            bcx3 = xs3[max_ind]
+            bcy3 = ys3[max_ind]
+            bcx4 = xs4[max_ind]
+            bcy4 = ys4[max_ind]
+            bcx5 = xs5[max_ind]
+            bcy5 = ys5[max_ind]
+            bcx6 = xs6[max_ind]
+            bcy6 = ys6[max_ind]
+            bcx7 = xs7[max_ind]
+            bcy7 = ys7[max_ind]
+            bcx8 = xs8[max_ind]
+            bcy8 = ys8[max_ind]
+            cls_max_conf = max_cls_conf # cls_max_confs[max_ind]
+            cls_max_id = correspondingclass # cls_max_ids[max_ind]
+            det_conf = max_conf # det_confs[max_ind]
+            box = [bcx0/w, bcy0/h, bcx1/w, bcy1/h, bcx2/w, bcy2/h, bcx3/w, bcy3/h, bcx4/w, bcy4/h, bcx5/w, bcy5/h, bcx6/w, bcy6/h, bcx7/w, bcy7/h, bcx8/w, bcy8/h, det_conf, cls_max_conf, cls_max_id]
+            # experiment: chris commented out
+            boxes.append(box)
+            # print(boxes)
+            # experiment: chris commented out
+            all_boxes.append(boxes)
+        else:
+            all_boxes.append(boxes)
+
+    t3 = time.time()
+    if True:
+        print('---------------------------------')
+        print('gpu to cpu for numpy : %f' % (t0-t0minus))
+        print('matrix computation : %f' % (t1-t0))
+        print('        gpu to cpu : %f' % (t2-t1))
+        print('      boxes filter : %f' % (t3-t2))
+        print('---------------------------------')
+    return all_boxes
 
 def get_boxes(output, conf_thresh, num_classes, anchors, num_anchors, correspondingclass, only_objectness=1, validation=False):
     
@@ -1587,6 +1777,70 @@ def do_detect_trt(context, img, conf_thresh, nms_thresh, bindings, inputs, outpu
         print('           total : %f' % (t5 - t0))
         print('-----------------------------------')
     return boxes
+
+def do_detect_trt_multi(context, img, conf_thresh, nms_thresh, num_classes, anchors, num_anchors, bindings, inputs, outputs, stream, use_cuda=1):
+    #model.eval()
+    t0 = time.time()
+
+    if isinstance(img, Image.Image):
+        width = img.width
+        height = img.height
+        img = torch.ByteTensor(torch.ByteStorage.from_buffer(img.tobytes()))
+        img = img.view(height, width, 3).transpose(0,1).transpose(0,2).contiguous()
+        img = img.view(1, 3, height, width)
+        img = img.float().div(255.0)
+    elif type(img) == np.ndarray: # cv2 image
+        img = torch.from_numpy(img.transpose(2,0,1)).float().div(255.0).unsqueeze(0)
+        img = img
+    else:
+        print("unknow image type")
+        exit(-1)
+
+    t1 = time.time()
+
+    # if use_cuda:
+    #     img = img.cuda()
+    # img = torch.autograd.Variable(img)
+    t2 = time.time()
+
+    inputs[0].host = img.numpy()
+    trt_outputs = []
+    trt_outputs = common.do_inference(context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream)
+    trt_outputs = array(trt_outputs).reshape(1, num_anchors*(19 + num_classes),13,13)
+    #trt_outputs = array(trt_outputs)
+    print('model output shape ', trt_outputs.shape)
+    #for j in range(100):
+    #    sys.stdout.write('%f ' % (output.storage()[j]))
+    #print('')
+    t3 = time.time()
+
+    all_boxes = []
+    for i in range(num_classes):
+        correspondingclass = i
+        # experiment: chris
+        # override the default confidence threshold
+        conf_thresh = 0.20
+        boxes = get_corresponding_region_boxes_trt(trt_outputs, conf_thresh, num_classes, anchors, num_anchors, correspondingclass, only_objectness=1, validation=True)[0]
+        boxes = nms_multi_v2(boxes, nms_thresh)
+        all_boxes.append(boxes)
+    #for j in range(len(boxes)):
+    #    print(boxes[j])
+    t4 = time.time()
+
+    t5 = time.time()
+
+    # for debug 
+    #print(boxes)
+    if True:
+        print('-----------------------------------')
+        print(' image to tensor : %f' % (t1 - t0))
+        print('  tensor to cuda : %f' % (t2 - t1))
+        print('         predict : %f' % (t3 - t2))
+        print('get_region_boxes : %f' % (t4 - t3))
+        print('             nms : %f' % (t5 - t4))
+        print('           total : %f' % (t5 - t0))
+        print('-----------------------------------')
+    return all_boxes
 
 def get_engine(onnx_file_path, engine_file_path=""):
     """Attempts to load a serialized engine if available, otherwise builds a new TensorRT engine and saves it."""
