@@ -1,1 +1,7 @@
 CUDA_LAUNCH_BLOCKING=1 python3 inference.py cfg/cargo.data cfg/yolo-pose.cfg backup/cargo/c920_cam/model.weights
+
+CUDA_LAUNCH_BLOCKING=1 python3 inference.py cfg/hatchPanel.data cfg/yolo-pose.cfg backup/hatchPanel/c920_cam/model.weights
+
+CUDA_LAUNCH_BLOCKING=1 python3 multi_obj_pose_estimation/inference_multi.py multi_obj_pose_estimation/cfg/yolo-pose-multi.cfg multi_obj_pose_estimation/backup_multi/c920_cam/cargo_27_percent_hatchPanel_62_percent/model.weights
+
+CUDA_LAUNCH_BLOCKING=1 python3 multi_obj_pose_estimation/inference_multi.py multi_obj_pose_estimation/cfg/yolo-pose-multi.cfg multi_obj_pose_estimation/backup_multi/c920_cam/brownGlyphClassSetToZero/model.weights
