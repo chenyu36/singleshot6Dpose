@@ -4,6 +4,9 @@ import random
 import os
 from PIL import Image, ImageChops, ImageMath
 import numpy as np
+import cv2
+
+debug_multi = False
 
 def load_data_detection_backup(imgpath, shape, jitter, hue, saturation, exposure, bgpath):
     labpath = imgpath.replace('images', 'labels').replace('JPEGImages', 'labels').replace('.jpg', '.txt').replace('.png','.txt')
@@ -21,32 +24,12 @@ def load_data_detection_backup(imgpath, shape, jitter, hue, saturation, exposure
 
 def get_add_objs(objname):
     # Decide how many additional objects you will augment and what will be the other types of objects
-    if objname == 'ape':
-        add_objs = ['can', 'cat', 'duck', 'glue', 'holepuncher', 'iron', 'phone'] # eggbox
-    elif objname == 'benchvise':
-        add_objs = ['ape', 'can', 'cat', 'driller', 'duck', 'glue', 'holepuncher']
-    elif objname == 'cam':
-        add_objs = ['ape', 'benchvise', 'can', 'cat', 'driller', 'duck', 'holepuncher']
-    elif objname == 'can':
-        add_objs = ['ape', 'benchvise', 'cat', 'driller', 'duck', 'eggbox', 'holepuncher']
-    elif objname == 'cat':
-        add_objs = ['ape', 'can', 'duck', 'glue', 'holepuncher', 'eggbox', 'phone']
-    elif objname == 'driller':
-        add_objs = ['ape', 'benchvise', 'can', 'cat', 'duck', 'glue', 'holepuncher']
-    elif objname == 'duck':
-        add_objs = ['ape', 'can', 'cat', 'eggbox', 'glue', 'holepuncher', 'phone']
-    elif objname == 'eggbox':
-        add_objs = ['ape', 'benchvise', 'cam', 'can', 'cat', 'duck', 'glue', 'holepuncher']
-    elif objname == 'glue':
-        add_objs = ['ape', 'benchvise', 'cam', 'driller', 'duck', 'eggbox', 'holepuncher' ]
-    elif objname == 'holepuncher':
-        add_objs = ['benchvise', 'cam', 'can', 'cat', 'driller', 'duck', 'eggbox']
-    elif objname == 'iron':
-        add_objs = ['ape', 'benchvise', 'can', 'cat', 'driller', 'duck', 'glue']
-    elif objname == 'lamp':
-        add_objs = ['ape', 'benchvise', 'can', 'driller', 'eggbox', 'holepuncher', 'iron']
-    elif objname == 'phone':
-        add_objs = ['ape', 'benchvise', 'cam', 'can', 'driller', 'duck', 'holepuncher']
+    if objname == 'cargo':
+        add_objs = ['hatchPanel'] # eggbox
+    elif objname == 'hatchPanel':
+        add_objs = ['cargo']
+    elif objname == 'brownGlyph':
+        add_objs = ['cargo', 'hatchPanel']    
     return add_objs
 
 def mask_background(img, mask):
@@ -122,6 +105,8 @@ def data_augmentation(img, shape, jitter, hue, saturation, exposure):
     sy = float(sheight) / oh
     
     flip = random.randint(1,10000)%2
+    #disable flipping
+    flip = 0
     cropped = img.crop( (pleft, ptop, pleft + swidth - 1, ptop + sheight - 1))
 
     dx = (float(pleft)/ow)/sx
@@ -266,14 +251,19 @@ def shifted_data_augmentation_with_mask(img, mask, shape, jitter, hue, saturatio
     sx = float(swidth)  / ow
     sy = float(sheight) / oh
     
+
     flip = random.randint(1,10000)%2
+    # disable flipping
+    flip = 0
     
     cropped = img.crop( (pleft, ptop, pleft + swidth - 1, ptop + sheight - 1))
     mask_cropped = mask.crop( (pleft, ptop, pleft + swidth - 1, ptop + sheight - 1))
     
     cw, ch = cropped.size
-    shift_x = random.randint(-80, 80)
-    shift_y = random.randint(-80, 80)
+    # shift_x = random.randint(-80, 80)
+    # shift_y = random.randint(-80, 80)
+    shift_x = 0
+    shift_y = 0
     dx = (float(pleft)/ow)/sx - (float(shift_x)/shape[0]) # FIX HERE
     dy = (float(ptop) /oh)/sy - (float(shift_y)/shape[1]) # FIX HERE
 
@@ -292,7 +282,8 @@ def shifted_data_augmentation_with_mask(img, mask, shape, jitter, hue, saturatio
         
     img = sized
     mask = mask_sized
-    
+    #debug
+    #print('function shifted_data_augmentation_with_mask')
     return img, mask, flip, dx,dy,sx,sy
 
 def data_augmentation_with_mask(img, mask, shape, jitter, hue, saturation, exposure):
@@ -312,7 +303,9 @@ def data_augmentation_with_mask(img, mask, shape, jitter, hue, saturation, expos
     sx = float(swidth)  / ow
     sy = float(sheight) / oh
     
-    flip = random.randint(1,10000)%2
+    # flip = random.randint(1,10000)%2
+    # disable flip
+    flip = 0
     cropped = img.crop( (pleft, ptop, pleft + swidth - 1, ptop + sheight - 1))
     mask_cropped = mask.crop( (pleft, ptop, pleft + swidth - 1, ptop + sheight - 1))
 
@@ -327,7 +320,8 @@ def data_augmentation_with_mask(img, mask, shape, jitter, hue, saturation, expos
         mask_sized = mask_sized.transpose(Image.FLIP_LEFT_RIGHT)
     img = sized
     mask = mask_sized
-    
+    #debug
+    #print('function data_augmentation_with_mask')
     return img, mask, flip, dx,dy,sx,sy 
 
 def superimpose_masked_imgs(masked_img, mask, total_mask):
@@ -389,23 +383,49 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
     total_mask = mask
     total_masked_img = masked_img
     count = 1
+
+    #debug
+    total_mask_path = ''
     for obj in add_objs:
         successful = False
         while not successful:
 
-            objpath = '../LINEMOD/' + obj + '/train.txt'
+            objpath = '../FRC2019/' + obj + '/train.txt'
             with open(objpath, 'r') as objfile:
                 objlines = objfile.readlines()
             rand_index = random.randint(0, len(objlines) - 1)
-            obj_rand_img_path = '../' + objlines[rand_index].rstrip()
+            obj_rand_img_path = '' + objlines[rand_index].rstrip()
             obj_rand_mask_path = obj_rand_img_path.replace('JPEGImages', 'mask').replace('/00', '/').replace('.jpg', '.png')
             obj_rand_lab_path = obj_rand_img_path.replace('images', 'labels').replace('JPEGImages', 'labels').replace('.jpg', '.txt').replace('.png','.txt')
+
+            # debug
+            # print('image ' + obj_rand_img_path)
+            # print('mask ' + obj_rand_mask_path)
+            # print('label' + obj_rand_lab_path)
 
             obj_rand_img = Image.open(obj_rand_img_path).convert('RGB')
             obj_rand_mask = Image.open(obj_rand_mask_path).convert('RGB')
             obj_rand_masked_img = mask_background(obj_rand_img, obj_rand_mask)
 
             obj_rand_masked_img,obj_rand_mask,flip,dx,dy,sx,sy = data_augmentation_with_mask(obj_rand_masked_img, obj_rand_mask, shape, jitter, hue, saturation, exposure)
+            
+            # debug
+            if debug_multi:
+                if 'hatchPanel' in obj_rand_mask_path:
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/hatchPanel/mask/', './test_hatchPanel/aug_')
+                    total_mask_path = obj_rand_mask_path.replace('../FRC2019/hatchPanel/mask/', '')
+                    print('modified mask path: ', mod_obj_rand_mask_path)
+                    np_obj_rand_masked_img = np.array(obj_rand_masked_img)
+                    np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)
+                    cv2.imwrite(mod_obj_rand_mask_path, np_obj_rand_masked_img)
+                elif 'cargo' in obj_rand_mask_path:
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/cargo/mask/', './test_cargo/aug_')
+                    total_mask_path = obj_rand_mask_path.replace('../FRC2019/cargo/mask/', '')
+                    print('modified mask path: ', mod_obj_rand_mask_path)
+                    np_obj_rand_masked_img = np.array(obj_rand_masked_img)
+                    np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)
+                    cv2.imwrite(mod_obj_rand_mask_path, np_obj_rand_masked_img)
+
             obj_rand_label = fill_truth_detection(obj_rand_lab_path, iw, ih, flip, dx, dy, 1./sx, 1./sy)
             
             # compute intersection (ratio of the object part intersecting with other object parts over the area of the object)
@@ -418,7 +438,7 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
                 successful = False
                 continue
             intersection_ratio = float(np.sum(intersection)) / float(np.sum(xx))
-            if intersection_ratio < 0.2:
+            if intersection_ratio < 0.6:
                 successful = True
                 total_mask = superimpose_masks(obj_rand_mask, total_mask) #  total_mask + obj_rand_mask
                 total_masked_img = superimpose_masked_imgs(obj_rand_masked_img, obj_rand_mask, total_masked_img) # total_masked_img + obj_rand_masked_img
@@ -429,6 +449,12 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
                 successful = False
 
     total_masked_img = superimpose_masked_imgs(masked_img, mask, total_masked_img)
+
+    # debug
+    if debug_multi:
+        np_total_masked_img = np.array(total_masked_img)
+        np_total_masked_img = cv2.cvtColor(np_total_masked_img, cv2.COLOR_BGR2RGB)
+        cv2.imwrite('./test_total_masked/'+ total_mask_path, np_total_masked_img)
 
     return total_masked_img, np.reshape(total_label, (-1)), total_mask
 

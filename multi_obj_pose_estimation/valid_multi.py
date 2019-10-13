@@ -13,6 +13,8 @@ from utils import *
 import dataset_multi
 from MeshPly import MeshPly
 
+debug_multi = False
+
 def valid(datacfg, cfgfile, weightfile, conf_th):
     def truths_length(truths):
         for i in range(50):
@@ -45,8 +47,11 @@ def valid(datacfg, cfgfile, weightfile, conf_th):
     model.cuda()
     model.eval()
 
+    test_width = 544
+    test_height = 544
+
     # Get the parser for the test dataset
-    valid_dataset = dataset_multi.listDataset(valid_images, shape=(model.width, model.height),
+    valid_dataset = dataset_multi.listDataset(valid_images, shape=(test_width, test_height),
                        shuffle=False,
                        objclass=name,
                        transform=transforms.Compose([
@@ -55,13 +60,13 @@ def valid(datacfg, cfgfile, weightfile, conf_th):
     valid_batchsize = 1
 
     # Specify the number of workers for multiple processing, get the dataloader for the test dataset
-    kwargs = {'num_workers': 4, 'pin_memory': True}
+    kwargs = {'num_workers': 1, 'pin_memory': True}
     test_loader = torch.utils.data.DataLoader(
         valid_dataset, batch_size=valid_batchsize, shuffle=False, **kwargs) 
 
     # Parameters
     use_cuda        = True
-    num_classes     = 13
+    num_classes     = 3
     anchors         = [1.4820, 2.2412, 2.0501, 3.1265, 2.3946, 4.6891, 3.1018, 3.9910, 3.4879, 5.8851] 
     num_anchors     = 5
     eps             = 1e-5
@@ -104,12 +109,20 @@ def valid(datacfg, cfgfile, weightfile, conf_th):
             
             # For each image, get all the targets (for multiple object pose estimation, there might be more than 1 target per image)
             truths  = target[i].view(-1, 21)
+            if debug_multi:
+                print(type(truth))
             
             # Get how many object are present in the scene
             num_gts = truths_length(truths)
+            if debug_multi:
+                print('numbers of ground truth: ' + str(num_gts))
+            
 
             # Iterate through each ground-truth object
             for k in range(num_gts):
+                if debug_multi:
+                    print('object class in label is: ' + str(truths[k][0]))
+
                 box_gt        = [truths[k][1], truths[k][2], truths[k][3], truths[k][4], truths[k][5], truths[k][6], 
                                 truths[k][7], truths[k][8], truths[k][9], truths[k][10], truths[k][11], truths[k][12], 
                                 truths[k][13], truths[k][14], truths[k][15], truths[k][16], truths[k][17], truths[k][18], 1.0, 1.0, truths[k][0]]
@@ -129,11 +142,18 @@ def valid(datacfg, cfgfile, weightfile, conf_th):
                 # Denormalize the corner predictions 
                 corners2D_gt = np.array(np.reshape(box_gt[:18], [9, 2]), dtype='float32')
                 corners2D_pr = np.array(np.reshape(box_pr[:18], [9, 2]), dtype='float32')
-                corners2D_gt[:, 0] = corners2D_gt[:, 0] * 640
-                corners2D_gt[:, 1] = corners2D_gt[:, 1] * 480               
-                corners2D_pr[:, 0] = corners2D_pr[:, 0] * 640
-                corners2D_pr[:, 1] = corners2D_pr[:, 1] * 480
-                corners2D_gt_corrected = fix_corner_order(corners2D_gt) # Fix the order of corners
+                corners2D_gt[:, 0] = corners2D_gt[:, 0] * 1280
+                corners2D_gt[:, 1] = corners2D_gt[:, 1] * 720               
+                corners2D_pr[:, 0] = corners2D_pr[:, 0] * 1280
+                corners2D_pr[:, 1] = corners2D_pr[:, 1] * 720
+                #corners2D_gt_corrected = fix_corner_order(corners2D_gt) # Fix the order of corners
+                # don't fix corner since the order is already correct
+                corners2D_gt_corrected = corners2D_gt
+
+                if debug_multi:
+                    print('2d corners ground truth: ')
+                    print(type(corners2D_gt_corrected))
+                    print(corners2D_gt_corrected)
                 
                 # Compute [R|t] by pnp
                 objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
@@ -166,18 +186,10 @@ if __name__ == '__main__' and __package__ is None:
         conf_th = 0.05
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
-        datacfg = 'cfg/ape_occlusion.data'
+        datacfg = 'cfg/cargo_occlusion.data'
         valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/can_occlusion.data'
-        valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/cat_occlusion.data'
-        valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/duck_occlusion.data'
-        valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/glue_occlusion.data'
-        valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/holepuncher_occlusion.data'
+        datacfg = 'cfg/hatchPanel_occlusion.data'
         valid(datacfg, cfgfile, weightfile, conf_th)
     else:
         print('Usage:')
-        print(' python valid.py cfgfile weightfile')
+        print(' python valid_multi.py cfgfile weightfile')
