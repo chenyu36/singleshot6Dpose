@@ -14,7 +14,7 @@ import dataset_multi
 from MeshPly import MeshPly
 
 check_z_plausibility = False
-debug_multi_boxes = False
+debug_multi_boxes = True
 
 def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
     def truths_length(truths):
@@ -103,7 +103,7 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
     eps             = 1e-5
     conf_thresh     = conf_th
     iou_thresh      = 0.5 # was 0.5
-    nms_thresh      = 0.9 # was 0.4
+    nms_thresh      = 0.5 # was 0.4
     y_dispay_thresh = 144
 
     # Parameters to save
@@ -143,7 +143,7 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
                 for box in all_boxes:
                     if debug_multi_boxes:
                         print('box\n', box)
-                        print('box cluster')
+                    #print('box cluster')
                     for i in range(len(box)):
                         print('box class ', int(box[i][20]), ' confidence ', "{0:.2f}".format(float(box[i][18])))     
 
@@ -169,7 +169,7 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
                         correspondingclass = i
                         for j in range(len(boxes)):
      
-                            if (boxes[j][18] > conf_thresh) and (boxes[j][20] == correspondingclass):
+                            if (boxes[j][20] == correspondingclass):
                                 print('detected obj class is ', correspondingclass)
                                 box_pr        = boxes[j]
 
@@ -327,7 +327,7 @@ if __name__ == '__main__' and __package__ is None:
     import sys
     print(sys.argv)
     if len(sys.argv) == 3:
-        conf_th = 0.2
+        conf_th = 0.45
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
         #class number = 0

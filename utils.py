@@ -212,6 +212,46 @@ def bbox_iou(box1, box2, x1y1x2y2=False):
     uarea = area1 + area2 - carea
     return carea/uarea
 
+def bbox_iou_cube(box1, box2, x1y1x2y2=True):
+    if x1y1x2y2:
+        # point 1, 3, 5, 7 are points that form the front face of the cube
+        # point 3 and 5 are the upper left and lower right points of the rectangle, to be used for nms area overlap calculation
+        # nms algorithm x1 is point 3's X coordinate which has index 6 in the "boxes" array of length 21
+        # nms algorithm y1 is point 3's Y coordinate which has index 7 in the "boxes" array of length 21
+        # nms algorithm x2 is point 5's X coordinate which has index 10 in the "boxes" array of length 21
+        # nms algorithm y2 is point 5's y coordinate which has index 11 in the "boxes" array of length 21
+        # With above chocie, we pick index 6, 7, 10 and 11 from the "boxes" array of length 21, for nms        
+        mx = min(box1[6], box2[6])
+        Mx = max(box1[10], box2[10])
+        my = min(box1[7], box2[7])
+        My = max(box1[11], box2[11])
+        w1 = box1[10] - box1[6]
+        h1 = box1[11] - box1[7]
+        w2 = box2[10] - box2[6]
+        h2 = box2[11] - box2[7]
+    else:
+        mx = min(box1[0]-box1[2]/2.0, box2[0]-box2[2]/2.0)
+        Mx = max(box1[0]+box1[2]/2.0, box2[0]+box2[2]/2.0)
+        my = min(box1[1]-box1[3]/2.0, box2[1]-box2[3]/2.0)
+        My = max(box1[1]+box1[3]/2.0, box2[1]+box2[3]/2.0)
+        w1 = box1[2]
+        h1 = box1[3]
+        w2 = box2[2]
+        h2 = box2[3]
+    uw = Mx - mx
+    uh = My - my
+    cw = w1 + w2 - uw
+    ch = h1 + h2 - uh
+    carea = 0
+    if cw <= 0 or ch <= 0:
+        return 0.0
+
+    area1 = w1 * h1
+    area2 = w2 * h2
+    carea = cw * ch
+    uarea = area1 + area2 - carea
+    return carea/uarea
+
 def corner_confidences(gt_corners, pr_corners, th=30, sharpness=2, im_width=1280, im_height=720):
     ''' gt_corners: Ground-truth 2D projections of the 3D bounding box corners, shape: (16 x nA), type: torch.FloatTensor
         pr_corners: Prediction for the 2D projections of the 3D bounding box corners, shape: (16 x nA), type: torch.FloatTensor
@@ -399,20 +439,21 @@ def nms_multi_v2(boxes, nms_thresh):
         return boxes
 
     det_confs = torch.zeros(len(boxes))
+    # index 18 is the det_conf i.e. confidence of the detected object
     for i in range(len(boxes)):
-        det_confs[i] = 1-boxes[i][4]                
+        det_confs[i] = 1-boxes[i][18]                
 
     _,sortIds = torch.sort(det_confs)
     out_boxes = []
     for i in range(len(boxes)):
         box_i = boxes[sortIds[i]]
-        if box_i[4] > 0:
+        if box_i[18] > 0:
             out_boxes.append(box_i)
             for j in range(i+1, len(boxes)):
                 box_j = boxes[sortIds[j]]
-                if bbox_iou(box_i, box_j, x1y1x2y2=False) > nms_thresh:
+                if bbox_iou_cube(box_i, box_j, x1y1x2y2=True) > nms_thresh:
                     #print(box_i, box_j, bbox_iou(box_i, box_j, x1y1x2y2=False))
-                    box_j[4] = 0
+                    box_j[18] = 0
     return out_boxes
 
 
@@ -436,10 +477,24 @@ def non_max_suppression_fast(boxes, overlapThresh):
     pick = []
 
     # grab the coordinates of the bounding boxes
-    x1 = boxes[:,0]
-    y1 = boxes[:,1]
-    x2 = boxes[:,2]
-    y2 = boxes[:,3]
+    # x1 = boxes[:,0]
+    # y1 = boxes[:,1]
+    # x2 = boxes[:,2]
+    # y2 = boxes[:,3]
+    # grab the front faces of the cube as bounding boxes
+
+    # point 1, 3, 5, 7 are points that form the front face of the cube
+    # point 3 and 5 are the upper left and lower right points of the rectangle, to be used for nms area overlap calculation
+    # nms algorithm x1 is point 3's X coordinate which has index 6 in the "boxes" array of length 21
+    # nms algorithm y1 is point 3's Y coordinate which has index 7 in the "boxes" array of length 21
+    # nms algorithm x2 is point 5's X coordinate which has index 10 in the "boxes" array of length 21
+    # nms algorithm y2 is point 5's y coordinate which has index 11 in the "boxes" array of length 21
+    # With above chocie, we pick index 6, 7, 10 and 11 from the "boxes" array of length 21, for nms
+
+    x1 = boxes[:,6]
+    y1 = boxes[:,7]
+    x2 = boxes[:,10]
+    y2 = boxes[:,11]
 
     # print('x1', x1)
     # print('y1', y1)
@@ -1817,12 +1872,21 @@ def do_detect_trt_multi(context, img, conf_thresh, nms_thresh, num_classes, anch
     all_boxes = []
     for i in range(num_classes):
         correspondingclass = i
-        # experiment: chris
-        # override the default confidence threshold
-        conf_thresh = 0.20
         boxes = get_corresponding_region_boxes_trt(trt_outputs, conf_thresh, num_classes, anchors, num_anchors, correspondingclass, only_objectness=1, validation=True)[0]
-        boxes = nms_multi_v2(boxes, nms_thresh)
-        all_boxes.append(boxes)
+        
+
+        # group boxes into each class
+        classified_boxes = []
+        for i in range(len(boxes)):
+            confidence = boxes[i][18]
+            obj_class = boxes[i][20]
+            if (confidence > conf_thresh) and (obj_class == correspondingclass):
+                classified_boxes.append(boxes[i])
+
+        # perfrom nms (non-maximum supression) for each class's boxes
+        classified_boxes = nms_multi_v2(classified_boxes, nms_thresh)
+        #classified_boxes = non_max_suppression_fast(classified_boxes, nms_thresh)
+        all_boxes.append(classified_boxes)
     #for j in range(len(boxes)):
     #    print(boxes[j])
     t4 = time.time()
