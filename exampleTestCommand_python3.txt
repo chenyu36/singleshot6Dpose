@@ -1,0 +1,1 @@
+python3 valid.py cfg/cargo.data cfg/yolo-pose.cfg backup/cargo/model_backup.weights

@@ -1,0 +1,2 @@
+python3 train.py cfg/cargo.data cfg/yolo-pose.cfg backup/cargo/init.weights
+python3 train_multi.py ./cfg/occlusion.data ./cfg/yolo-pose-multi.cfg ./backup_multi/hatchPanel_model.weights

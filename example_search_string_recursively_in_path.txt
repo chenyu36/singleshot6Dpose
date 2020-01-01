@@ -1,0 +1,8 @@
+grep -rnw '/XavierSSD500/singleshot6Dpose' -e '../FRC2019/cargo/labels_occlusion/screen_1280x720_875.txt'
+
+grep -rnw '/XavierSSD500/singleshot6Dpose' -e 'num_workers'
+
+grep -rnw '/XavierSSD500/singleshot6Dpose' -e '../LINEMOD/hatchPanel/train.txt'
+
+grep -rnw '/XavierSSD500/singleshot6Dpose' -e 'labels_occlusion'
+
