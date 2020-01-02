@@ -907,7 +907,7 @@ def get_region_boxes_multi(output, conf_thresh, num_classes, anchors, num_anchor
     return all_boxes
 
 def get_corresponding_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, correspondingclass, only_objectness=1, validation=False):
-    debug = True
+    debug = False
     # Parameters
     anchor_step = len(anchors)//num_anchors
     if output.dim() == 3:
