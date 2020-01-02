@@ -407,12 +407,24 @@ if __name__ == "__main__":
         logging('evaluating ...')
         test(0, 0)
     else:
+        t_init = time.time()
         for epoch in range(init_epoch, max_epochs): 
             # TRAIN
+            t_train_before = time.time()
             niter = train(epoch)
-            # TEST and SAVE
-            if (epoch % 5 == 0) and (epoch is not 0): 
+            t_train_after = time.time()
+            t_single_iter = t_train_after - t_train_before
+            print('training time this iteration ', "{0:.2f}".format(t_single_iter), ' sec')
+            # TEST and SAVEtime.time()
+            test_period = 10
+            if (epoch % test_period == 0) and (epoch is not 0): 
+                t_before_test = time.time()
                 test(niter)
+                t_after_test = time.time()
+                t_per_test = t_after_test - t_before_test
+                print('validation time ', "{0:.2f}".format(t_per_test), ' sec')
+                estimated_total_training_time = max_epochs/test_period*t_per_test + max_epochs*t_single_iter
+                print('estimated total training time ', "{0:.2f}".format(estimated_total_training_time), ' sec')
                 logging('save training stats to %s/costs.npz' % (backupdir))
                 np.savez(os.path.join(backupdir, "costs.npz"),
                     training_iters=training_iters,
