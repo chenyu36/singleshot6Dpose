@@ -298,10 +298,10 @@ def test(niter):
     
     cfgfile = 'cfg/yolo-pose-multi.cfg'
     # follow the order of class number for each object
-    datacfg = 'cfg/cargo_occlusion.data'
+    datacfg = 'cfg/cargo_occlusion_multi_obj_training.data'
     logging("Testing cargo...")
     eval(niter, datacfg, cfgfile)
-    datacfg = 'cfg/hatchPanel_occlusion.data'
+    datacfg = 'cfg/hatchPanel_occlusion_multi_obj_training.data'
     logging("Testing hatchPanel...")
     eval(niter, datacfg, cfgfile)
     # datacfg = 'cfg/holepuncher_occlusion.data'
