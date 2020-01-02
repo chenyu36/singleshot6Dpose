@@ -186,9 +186,9 @@ if __name__ == '__main__' and __package__ is None:
         conf_th = 0.05
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
-        datacfg = 'cfg/cargo_occlusion.data'
+        datacfg = 'cfg/cargo_occlusion_multi_obj_training.data'
         valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/hatchPanel_occlusion.data'
+        datacfg = 'cfg/hatchPanel_occlusion_multi_obj_training.data'
         valid(datacfg, cfgfile, weightfile, conf_th)
     else:
         print('Usage:')
