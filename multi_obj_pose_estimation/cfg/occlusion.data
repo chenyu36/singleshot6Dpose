@@ -1,8 +1,5 @@
 train  = cfg/train_occlusion.txt
-valid2  = ../FRC2019/cargo/test_occlusion.txt
-valid3  = ../FRC2019/hatchPanel/test_occlusion.txt
+valid4  = ../FRC2019/powerCell/test_occlusion.txt
 backup = ./backup_multi
-mesh2 = ../FRC2019/cargo/cargo.ply
-mesh3 = ../FRC2019/hatchPanel/hatchPanel.ply
-diam2 = 0.33
-diam3 = 0.49
+mesh4 = ../FRC2019/hatchPanel/powerCell.ply
+diam4 = 0.1778

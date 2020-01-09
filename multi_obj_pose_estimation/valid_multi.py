@@ -66,7 +66,7 @@ def valid(datacfg, cfgfile, weightfile, conf_th):
 
     # Parameters
     use_cuda        = True
-    num_classes     = 3
+    num_classes     = 2
     anchors         = [1.4820, 2.2412, 2.0501, 3.1265, 2.3946, 4.6891, 3.1018, 3.9910, 3.4879, 5.8851] 
     num_anchors     = 5
     eps             = 1e-5
@@ -186,9 +186,12 @@ if __name__ == '__main__' and __package__ is None:
         conf_th = 0.05
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
-        datacfg = 'cfg/cargo_occlusion_multi_obj_training.data'
-        valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/hatchPanel_occlusion_multi_obj_training.data'
+	# new multi obj: add here
+        # datacfg = 'cfg/cargo_occlusion.data'
+        # valid(datacfg, cfgfile, weightfile, conf_th)
+        # datacfg = 'cfg/hatchPanel_occlusion.data'
+        # valid(datacfg, cfgfile, weightfile, conf_th)
+        datacfg = 'cfg/powerCell_occlusion.data'
         valid(datacfg, cfgfile, weightfile, conf_th)
     else:
         print('Usage:')
