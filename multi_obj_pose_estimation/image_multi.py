@@ -22,14 +22,17 @@ def load_data_detection_backup(imgpath, shape, jitter, hue, saturation, exposure
     label = fill_truth_detection(labpath, img.width, img.height, flip, dx, dy, 1./sx, 1./sy)
     return img,label
 
+# new multi obj: add here
 def get_add_objs(objname):
     # Decide how many additional objects you will augment and what will be the other types of objects
     if objname == 'cargo':
-        add_objs = ['hatchPanel'] # eggbox
+        add_objs = ['hatchPanel', 'cargo', 'cargo', 'hatchPanel', 'cargo', 'hatchPanel']
     elif objname == 'hatchPanel':
-        add_objs = ['cargo']
+        add_objs = ['cargo', 'hatchPanel', 'hatchPanel', 'cargo', 'hatchPanel', 'cargo']
     elif objname == 'brownGlyph':
-        add_objs = ['cargo', 'hatchPanel']    
+        add_objs = ['powerCell']    
+    elif objname == 'powerCell':
+        add_objs = ['brownGlyph']  
     return add_objs
 
 def mask_background(img, mask):
@@ -410,6 +413,7 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
             obj_rand_masked_img,obj_rand_mask,flip,dx,dy,sx,sy = data_augmentation_with_mask(obj_rand_masked_img, obj_rand_mask, shape, jitter, hue, saturation, exposure)
             
             # debug
+	    # new multi obj: add here
             if debug_multi:
                 if 'hatchPanel' in obj_rand_mask_path:
                     mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/hatchPanel/mask/', './test_hatchPanel/aug_')
@@ -421,6 +425,13 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
                 elif 'cargo' in obj_rand_mask_path:
                     mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/cargo/mask/', './test_cargo/aug_')
                     total_mask_path = obj_rand_mask_path.replace('../FRC2019/cargo/mask/', '')
+                    print('modified mask path: ', mod_obj_rand_mask_path)
+                    np_obj_rand_masked_img = np.array(obj_rand_masked_img)
+                    np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)
+                    cv2.imwrite(mod_obj_rand_mask_path, np_obj_rand_masked_img)
+                elif 'powerCell' in obj_rand_mask_path:
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/powerCell/mask/', './test_powerCell/aug_')
+                    total_mask_path = obj_rand_mask_path.replace('../FRC2019/powerCell/mask/', '')
                     print('modified mask path: ', mod_obj_rand_mask_path)
                     np_obj_rand_masked_img = np.array(obj_rand_masked_img)
                     np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)

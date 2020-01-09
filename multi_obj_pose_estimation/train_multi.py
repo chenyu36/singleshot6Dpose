@@ -276,8 +276,11 @@ def eval(niter, datacfg, cfgfile):
             t5 = time.time()
 
     # Compute 2D reprojection score
+    acc_5px = 0
     for px_threshold in [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
         acc = len(np.where(np.array(errs_2d) <= px_threshold)[0]) * 100. / (len(errs_2d)+eps)
+        if px_threshold == 5:
+            acc_5px = acc
         logging('   Acc using {} px 2D Projection = {:.2f}%'.format(px_threshold, acc))
 
     if True:
@@ -293,17 +296,25 @@ def eval(niter, datacfg, cfgfile):
     testing_iters.append(niter)
     testing_errors_pixel.append(testing_error_pixel/(float(testing_samples)+eps))
     testing_accuracies.append(acc)
+    testing_accuracies_5pixel.append(acc_5px)
 
 def test(niter):
-    
+    # new multi obj: add here
+
     cfgfile = 'cfg/yolo-pose-multi.cfg'
     # follow the order of class number for each object
-    datacfg = 'cfg/cargo_occlusion_multi_obj_training.data'
-    logging("Testing cargo...")
+    # datacfg = 'cfg/cargo_occlusion.data'
+    # logging("Testing cargo...")
+    # eval(niter, datacfg, cfgfile)
+
+    # datacfg = 'cfg/hatchPanel_occlusion.data'
+    # logging("Testing hatchPanel...")
+    # eval(niter, datacfg, cfgfile)
+
+    datacfg = 'cfg/powerCell_occlusion.data'
+    logging("Testing powerCell...")
     eval(niter, datacfg, cfgfile)
-    datacfg = 'cfg/hatchPanel_occlusion_multi_obj_training.data'
-    logging("Testing hatchPanel...")
-    eval(niter, datacfg, cfgfile)
+
     # datacfg = 'cfg/holepuncher_occlusion.data'
     # logging("Testing holepuncher...")
     # eval(niter, datacfg, cfgfile)
@@ -375,11 +386,12 @@ if __name__ == "__main__":
     init_epoch        = model.seen//nsamples 
 
     # Variable to save
-    training_iters          = []
-    training_losses         = []
-    testing_iters           = []
-    testing_errors_pixel    = []
-    testing_accuracies      = []
+    training_iters              = []
+    training_losses             = []
+    testing_iters               = []
+    testing_errors_pixel        = []
+    testing_accuracies_5pixel   = []
+    testing_accuracies          = []
 
 
     # Specify the number of workers
@@ -407,29 +419,18 @@ if __name__ == "__main__":
         logging('evaluating ...')
         test(0, 0)
     else:
-        t_init = time.time()
         for epoch in range(init_epoch, max_epochs): 
             # TRAIN
-            t_train_before = time.time()
             niter = train(epoch)
-            t_train_after = time.time()
-            t_single_iter = t_train_after - t_train_before
-            print('training time this iteration ', "{0:.2f}".format(t_single_iter), ' sec')
-            # TEST and SAVEtime.time()
-            test_period = 10
-            if (epoch % test_period == 0) and (epoch is not 0): 
-                t_before_test = time.time()
+            # TEST and SAVE
+            if (epoch % 5 == 0) and (epoch is not 0): 
                 test(niter)
-                t_after_test = time.time()
-                t_per_test = t_after_test - t_before_test
-                print('validation time ', "{0:.2f}".format(t_per_test), ' sec')
-                estimated_total_training_time = max_epochs/test_period*t_per_test + max_epochs*t_single_iter
-                print('estimated total training time ', "{0:.2f}".format(estimated_total_training_time), ' sec')
                 logging('save training stats to %s/costs.npz' % (backupdir))
                 np.savez(os.path.join(backupdir, "costs.npz"),
                     training_iters=training_iters,
                     training_losses=training_losses,
                     testing_iters=testing_iters,
+                    testing_accuracies_5pixel=testing_accuracies_5pixel,
                     testing_accuracies=testing_accuracies,
                     testing_errors_pixel=testing_errors_pixel) 
                 if (np.mean(testing_accuracies[-5:]) > best_acc ):
