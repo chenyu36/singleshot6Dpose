@@ -60,7 +60,7 @@ def valid(datacfg, cfgfile, weightfile, conf_th):
     valid_batchsize = 1
 
     # Specify the number of workers for multiple processing, get the dataloader for the test dataset
-    kwargs = {'num_workers': 1, 'pin_memory': True}
+    kwargs = {'num_workers': 4, 'pin_memory': True}
     test_loader = torch.utils.data.DataLoader(
         valid_dataset, batch_size=valid_batchsize, shuffle=False, **kwargs) 
 
@@ -187,11 +187,11 @@ if __name__ == '__main__' and __package__ is None:
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
 	# new multi obj: add here
-        # datacfg = 'cfg/cargo_occlusion.data'
+        # datacfg = 'cfg/cargo_occlusion_multi_obj_training.data'
         # valid(datacfg, cfgfile, weightfile, conf_th)
-        # datacfg = 'cfg/hatchPanel_occlusion.data'
+        # datacfg = 'cfg/hatchPanel_occlusion_multi_obj_training.data'
         # valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/powerCell_occlusion.data'
+        datacfg = 'cfg/powerCell_occlusion_multi_obj_training.data'
         valid(datacfg, cfgfile, weightfile, conf_th)
     else:
         print('Usage:')

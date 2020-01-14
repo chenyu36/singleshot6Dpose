@@ -11,3 +11,6 @@ grep -rnw '/XavierSSD500/singleshot6Dpose' -e 'labels_occlusion'
 # on MSI
 grep -rnw '/home/chrischen/Documents/singleshot6Dpose' -e 'cargo_occlusion.data'
 
+grep -rnw '/home/chrischen/Documents/singleshot6Dpose' -e 'num_workers'
+
+grep -rnw '/home/chrischen/Documents/singleshot6Dpose' -e '../FRC2019/brownGlyph/mask/screen_1280x720_44838.png'

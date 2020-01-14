@@ -58,9 +58,9 @@ class listDataset(Dataset):
         if self.train:
             # jitter = 0.2
             jitter = 0.0
-            hue = 0.01       # was 0.05
+            hue = 0.014       # was 0.05
             saturation = 1.1 # was 1.5
-            exposure = 1.1   # was 1.5
+            exposure = 1.2   # was 1.5
 
             # Get background image path
             random_bg_index = random.randint(0, len(self.bg_file_names) - 1)
@@ -75,7 +75,7 @@ class listDataset(Dataset):
                 print(label)
                 print('length of label: ' + str(len(label)))
                 mod_imgpath = imgpath.replace('../FRC2019/brownGlyph/JPEGImages/', './test_load_data_detection/').replace('jpg','png')
-                mod_labpath = imgpath.replace('../FRC2019/brownGlyph/JPEGImages/', '').replace('jpg','txt')
+                mod_labpath = imgpath.replace('../FRC2019/brownGlyph/JPEGImages/', './test_load_data_detection/').replace('jpg','txt')
                 print(mod_imgpath)
                 print(mod_labpath)
                 cv2.imwrite(mod_imgpath, np_img)

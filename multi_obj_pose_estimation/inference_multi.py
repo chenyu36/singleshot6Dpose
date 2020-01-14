@@ -16,7 +16,7 @@ from MeshPly import MeshPly
 check_z_plausibility = False
 debug_multi_boxes = True
 
-def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
+def valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th):
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
@@ -49,21 +49,21 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
     corners3D.append(get_3D_corners(vertices[1]))
     diam          = float(options['diam'])
 
-    # Parse configuration file 1
-    options       = read_data_cfg(datacfg2)
-    valid_images  = options['valid']
-    meshname      = options['mesh']
-    name          = options['name']
-    prefix        = 'results'
-    # Read object model information, get 3D bounding box corners
-    mesh          = MeshPly(meshname)
-    vertices.append(np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose())
-    corners3D.append(get_3D_corners(vertices[2]))
-    diam          = float(options['diam'])
+    # Parse configuration file 2
+    # options       = read_data_cfg(datacfg2)
+    # valid_images  = options['valid']
+    # meshname      = options['mesh']
+    # name          = options['name']
+    # prefix        = 'results'
+    # # Read object model information, get 3D bounding box corners
+    # mesh          = MeshPly(meshname)
+    # vertices.append(np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose())
+    # corners3D.append(get_3D_corners(vertices[2]))
+    # diam          = float(options['diam'])
 
     #define the paths to tensorRT models 
-    onnx_file_path = './trt_models/multi_objs/multiobj_cargo_59_hatchPanel_75.onnx'
-    engine_file_path = './trt_models/multi_objs/multiobj_cargo_59_hatchPanel_75.trt'
+    onnx_file_path = './trt_models/multi_objs/powerCell_simplified.onnx'
+    engine_file_path = './trt_models/multi_objs/powerCell.trt'
     # Read intrinsic camera parameters
     internal_calibration = get_camera_intrinsic()
     dist = get_camera_distortion_mat()
@@ -92,7 +92,7 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
 
 
     # Specify the number of workers for multiple processing, get the dataloader for the test dataset
-    kwargs = {'num_workers': 1, 'pin_memory': True}
+    kwargs = {'num_workers': 4, 'pin_memory': True}
 
 
     # Parameters
@@ -103,8 +103,8 @@ def valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th):
     eps             = 1e-5
     conf_thresh     = conf_th
     iou_thresh      = 0.5 # was 0.5
-    nms_thresh      = 0.5 # was 0.4
-    y_dispay_thresh = 144
+    nms_thresh      = 0.3 # was 0.5
+    y_dispay_thresh = 10 # was 144
 
     # Parameters to save
     errs_2d             = []
@@ -327,17 +327,17 @@ if __name__ == '__main__' and __package__ is None:
     import sys
     print(sys.argv)
     if len(sys.argv) == 3:
-        conf_th = 0.45
+        conf_th = 0.09
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
         #class number = 0
         datacfg0 = 'multi_obj_pose_estimation/cfg/brownGlyph.data'
         #class number = 1
-        datacfg1 = 'multi_obj_pose_estimation/cfg/cargo_occlusion.data'
-        #class number = 2 
-        datacfg2 = 'multi_obj_pose_estimation/cfg/hatchPanel_occlusion.data'
+        datacfg1 = 'multi_obj_pose_estimation/cfg/powerCell_occlusion.data'
+        # #class number = 2 
+        # datacfg2 = 'multi_obj_pose_estimation/cfg/hatchPanel_occlusion.data'
         
-        valid(datacfg0, datacfg1, datacfg2, cfgfile, weightfile, conf_th)
+        valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th)
 
     else:
         print('Usage:')
