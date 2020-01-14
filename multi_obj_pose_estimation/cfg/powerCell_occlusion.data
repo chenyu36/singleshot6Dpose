@@ -1,0 +1,6 @@
+valid  = FRC2019/powerCell/test_occlusion.txt
+mesh = FRC2019/powerCell/powerCell.ply
+backup = backup_multi
+name = powerCell
+diam = 0.1778
+
