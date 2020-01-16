@@ -97,7 +97,8 @@ def valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th):
 
     # Parameters
     use_cuda        = True
-    num_classes     = 3
+    # add here
+    num_classes     = 4
     anchors         = [1.4820, 2.2412, 2.0501, 3.1265, 2.3946, 4.6891, 3.1018, 3.9910, 3.4879, 5.8851] 
     num_anchors     = 5
     eps             = 1e-5

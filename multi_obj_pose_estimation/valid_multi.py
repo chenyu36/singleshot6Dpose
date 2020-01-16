@@ -186,13 +186,16 @@ if __name__ == '__main__' and __package__ is None:
         conf_th = 0.05
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
-	# new multi obj: add here
+	    # new multi obj: add here
+        # these are the background (i.e. occluded) objects
         # datacfg = 'cfg/cargo_occlusion_multi_obj_training.data'
         # valid(datacfg, cfgfile, weightfile, conf_th)
         # datacfg = 'cfg/hatchPanel_occlusion_multi_obj_training.data'
         # valid(datacfg, cfgfile, weightfile, conf_th)
         datacfg = 'cfg/powerCell_occlusion_multi_obj_training.data'
         valid(datacfg, cfgfile, weightfile, conf_th)
+        datacfg = 'cfg/upperPortBlue_occlusion_multi_obj_training.data'
+        valid(datacfg, cfgfile, weightfile, conf_th)       
     else:
         print('Usage:')
         print(' python valid_multi.py cfgfile weightfile')

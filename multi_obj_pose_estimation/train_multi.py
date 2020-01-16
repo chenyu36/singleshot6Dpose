@@ -302,6 +302,9 @@ def test(niter):
     # new multi obj: add here
 
     cfgfile = 'cfg/yolo-pose-multi.cfg'
+
+    # these are background objects only
+
     # follow the order of class number for each object
     # datacfg = 'cfg/cargo_occlusion_multi_obj_training.data'
     # logging("Testing cargo...")
@@ -313,6 +316,10 @@ def test(niter):
 
     datacfg = 'cfg/powerCell_occlusion_multi_obj_training.data'
     logging("Testing powerCell...")
+    eval(niter, datacfg, cfgfile)
+
+    datacfg = 'cfg/upperPortBlue_occlusion_multi_obj_training.data'
+    logging("Testing upperPortBlue...")
     eval(niter, datacfg, cfgfile)
 
     # datacfg = 'cfg/holepuncher_occlusion.data'

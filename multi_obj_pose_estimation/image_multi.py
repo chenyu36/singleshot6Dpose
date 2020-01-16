@@ -25,14 +25,12 @@ def load_data_detection_backup(imgpath, shape, jitter, hue, saturation, exposure
 # new multi obj: add here
 def get_add_objs(objname):
     # Decide how many additional objects you will augment and what will be the other types of objects
-    if objname == 'cargo':
-        add_objs = ['hatchPanel', 'cargo', 'cargo', 'hatchPanel', 'cargo', 'hatchPanel']
-    elif objname == 'hatchPanel':
-        add_objs = ['cargo', 'hatchPanel', 'hatchPanel', 'cargo', 'hatchPanel', 'cargo']
-    elif objname == 'brownGlyph':
-        add_objs = ['powerCell']    
+    if objname == 'upperPortRed':
+        add_objs = ['powerCell', 'upperPortBlue']
+    elif objname == 'upperPortBlue':
+        add_objs = ['powerCell', 'upperPortRed']
     elif objname == 'powerCell':
-        add_objs = ['brownGlyph']  
+        add_objs = ['upperPortRed', 'upperPortBlue']    
     return add_objs
 
 def mask_background(img, mask):
@@ -415,16 +413,16 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
             # debug
 	    # new multi obj: add here
             if debug_multi:
-                if 'hatchPanel' in obj_rand_mask_path:
-                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/hatchPanel/mask/', './test_hatchPanel/aug_')
-                    total_mask_path = obj_rand_mask_path.replace('../FRC2019/hatchPanel/mask/', '')
+                if 'upperPortRed' in obj_rand_mask_path:
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortRed/mask/', './test_upperPortRed/aug_')
+                    total_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortRed/mask/', '')
                     print('modified mask path: ', mod_obj_rand_mask_path)
                     np_obj_rand_masked_img = np.array(obj_rand_masked_img)
                     np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)
                     cv2.imwrite(mod_obj_rand_mask_path, np_obj_rand_masked_img)
-                elif 'cargo' in obj_rand_mask_path:
-                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/cargo/mask/', './test_cargo/aug_')
-                    total_mask_path = obj_rand_mask_path.replace('../FRC2019/cargo/mask/', '')
+                elif 'upperPortBlue' in obj_rand_mask_path:
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortBlue/mask/', './test_upperPortBlue/aug_')
+                    total_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortBlue/mask/', '')
                     print('modified mask path: ', mod_obj_rand_mask_path)
                     np_obj_rand_masked_img = np.array(obj_rand_masked_img)
                     np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)

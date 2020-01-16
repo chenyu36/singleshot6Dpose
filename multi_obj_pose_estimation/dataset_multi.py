@@ -74,8 +74,10 @@ class listDataset(Dataset):
                 print(imgpath)
                 print(label)
                 print('length of label: ' + str(len(label)))
-                mod_imgpath = imgpath.replace('../FRC2019/brownGlyph/JPEGImages/', './test_load_data_detection/').replace('jpg','png')
-                mod_labpath = imgpath.replace('../FRC2019/brownGlyph/JPEGImages/', './test_load_data_detection/').replace('jpg','txt')
+                # add here
+                # replace the object after /FRC2019/ with the foreground object class name
+                mod_imgpath = imgpath.replace('../FRC2019/upperPortRed/JPEGImages/', './test_load_data_detection/').replace('jpg','png')
+                mod_labpath = imgpath.replace('../FRC2019/upperPortRed/JPEGImages/', './test_load_data_detection/').replace('jpg','txt')
                 print(mod_imgpath)
                 print(mod_labpath)
                 cv2.imwrite(mod_imgpath, np_img)
@@ -86,8 +88,9 @@ class listDataset(Dataset):
             img = Image.open(imgpath).convert('RGB')
             if self.shape:
                 img = img.resize(self.shape)
-            
-            labpath = imgpath.replace('brownGlyph', self.objclass).replace('images', 'labels_occlusion').replace('JPEGImages', 'labels_occlusion').replace('.jpg', '.txt').replace('.png','.txt')
+            # add here
+            # replace the object after /FRC2019/ with the foreground object class name
+            labpath = imgpath.replace('upperPortRed', self.objclass).replace('images', 'labels_occlusion').replace('JPEGImages', 'labels_occlusion').replace('.jpg', '.txt').replace('.png','.txt')
             
             label = torch.zeros(50*21)
             if os.path.getsize(labpath):
