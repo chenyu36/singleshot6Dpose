@@ -16,7 +16,7 @@ from MeshPly import MeshPly
 check_z_plausibility = False
 debug_multi_boxes = True
 
-def valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th):
+def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
@@ -50,20 +50,32 @@ def valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th):
     diam          = float(options['diam'])
 
     # Parse configuration file 2
-    # options       = read_data_cfg(datacfg2)
-    # valid_images  = options['valid']
-    # meshname      = options['mesh']
-    # name          = options['name']
-    # prefix        = 'results'
-    # # Read object model information, get 3D bounding box corners
-    # mesh          = MeshPly(meshname)
-    # vertices.append(np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose())
-    # corners3D.append(get_3D_corners(vertices[2]))
-    # diam          = float(options['diam'])
+    options       = read_data_cfg(datacfg2)
+    valid_images  = options['valid']
+    meshname      = options['mesh']
+    name          = options['name']
+    prefix        = 'results'
+    # Read object model information, get 3D bounding box corners
+    mesh          = MeshPly(meshname)
+    vertices.append(np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose())
+    corners3D.append(get_3D_corners(vertices[2]))
+    diam          = float(options['diam'])
+
+    # Parse configuration file 3
+    options       = read_data_cfg(datacfg3)
+    valid_images  = options['valid']
+    meshname      = options['mesh']
+    name          = options['name']
+    prefix        = 'results'
+    # Read object model information, get 3D bounding box corners
+    mesh          = MeshPly(meshname)
+    vertices.append(np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose())
+    corners3D.append(get_3D_corners(vertices[3]))
+    diam          = float(options['diam'])
 
     #define the paths to tensorRT models 
-    onnx_file_path = './trt_models/multi_objs/powerCell_simplified.onnx'
-    engine_file_path = './trt_models/multi_objs/powerCell.trt'
+    onnx_file_path = './trt_models/multi_objs/FRC2020models_v4_simplified.onnx'
+    engine_file_path = './trt_models/multi_objs/FRC2020models_v4.trt'
     # Read intrinsic camera parameters
     internal_calibration = get_camera_intrinsic()
     dist = get_camera_distortion_mat()
@@ -104,8 +116,8 @@ def valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th):
     eps             = 1e-5
     conf_thresh     = conf_th
     iou_thresh      = 0.5 # was 0.5
-    nms_thresh      = 0.3 # was 0.5
-    y_dispay_thresh = 10 # was 144
+    nms_thresh      = 0.8 # was 0.5
+    y_dispay_thresh = 1 # was 144
 
     # Parameters to save
     errs_2d             = []
@@ -168,6 +180,9 @@ def valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th):
                     #print('checking class ', boxes[20])
                     for i in range(num_classes):
                         correspondingclass = i
+                        # skipping brownGlyph which is class 0
+                        if correspondingclass == 0:
+                            continue
                         for j in range(len(boxes)):
      
                             if (boxes[j][20] == correspondingclass):
@@ -180,10 +195,39 @@ def valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th):
                                 corners2D_pr[:, 0] = corners2D_pr[:, 0] * 1280
                                 corners2D_pr[:, 1] = corners2D_pr[:, 1] * 720
                                 # Compute [R|t] by pnp
+                                # print('corners3D \n', corners3D)
+
                                 objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[i][:3, :]), axis=1)), dtype='float32')
+
+                                # the order of 3D vertices from the above function is incorrect, for upperPortRed and upperPortBlue, 
+                                # so we manually calculate 3D points (i.e. centroid + vertices) manually
+                                # the order of vertices is according to this link (see point 2)
+                                # https://github.com/microsoft/singleshotpose/blob/master/label_file_creation.md
+                                if (correspondingclass == 2 or correspondingclass == 3):
+                                    x_min_3d = 0
+                                    x_max_3d = 1.2192
+                                    y_min_3d = 0
+                                    y_max_3d = 1.1176
+                                    z_min_3d = 0
+                                    z_max_3d = 0.003302
+                                    centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+
+                                    objpoints3D = np.array([centroid,\
+                                    [ x_min_3d, y_min_3d, z_min_3d],\
+                                    [ x_min_3d, y_min_3d, z_max_3d],\
+                                    [ x_min_3d, y_max_3d, z_min_3d],\
+                                    [ x_min_3d, y_max_3d, z_max_3d],\
+                                    [ x_max_3d, y_min_3d, z_min_3d],\
+                                    [ x_max_3d, y_min_3d, z_max_3d],\
+                                    [ x_max_3d, y_max_3d, z_min_3d],\
+                                    [ x_max_3d, y_max_3d, z_max_3d]])
+
+                                # troubleshooting rvecs
+                                # print('objpoints3D \n', objpoints3D)
+                                # print('corners2D_pr \n', corners2D_pr)
                                 K = np.array(internal_calibration, dtype='float32')
 
-                                R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
+                                rvec, R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
                             
                                 # Compute pixel error
 
@@ -194,6 +238,8 @@ def valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th):
                                 # proj_corners_pr = np.transpose(compute_projection(corners3D[i], Rt_pr, internal_calibration))
 
                                 draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh)
+
+                                frame = draw_axis(rvec, t_pr, frame, corners2D_pr)
 
                 cv2.imshow('6D pose estimation - multi-objects', frame)
                 detectedKey = cv2.waitKey(1) & 0xFF
@@ -324,21 +370,52 @@ def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh):
         if (t_pr[2] < 0):
             print('x ', round(float(t_pr[0]), 2), 'y ', round(float(t_pr[1]), 2), 'z ', round(float(t_pr[2]), 2)) 
 
+
+def draw_axis(rvecs, tvecs, frame, corners2D_pr):
+    # Virtual World points of trihedron to show target pose
+    size = 0.5
+    axis = np.array([[0,0,0],[size,0,0],[0,size,0],[0,0,size]], dtype=np.float32)
+
+    internal_calibration = get_camera_intrinsic()
+    K = np.array(internal_calibration, dtype='float32')
+    dist = get_camera_distortion_mat()
+
+    print('rvecs \n', rvecs*180/3.142857)
+
+    axisPoints, _ = cv2.projectPoints(axis, rvecs, tvecs, K, dist)
+
+    # axis origin working at lower left corner of the
+    # frame = cv2.line(frame, tuple(axisPoints[0].ravel()), tuple(axisPoints[1].ravel()), (255,0,0), 3)
+    # frame = cv2.line(frame, tuple(axisPoints[0].ravel()), tuple(axisPoints[2].ravel()), (0,255,0), 3)
+    # frame = cv2.line(frame, tuple(axisPoints[0].ravel()), tuple(axisPoints[3].ravel()), (0,0,255), 3)
+
+    # calculate the delta (from the centroid in 2d image to the axisPoint origin)
+    delta = corners2D_pr[0].ravel() - axisPoints[0].ravel()
+    # draw axis from the centroid of object, and apply delta to each axis (i.e. x or y or z)
+    frame = cv2.line(frame, tuple(corners2D_pr[0].ravel()), tuple(axisPoints[1].ravel() + delta), (255,0,0), 3)
+    frame = cv2.line(frame, tuple(corners2D_pr[0].ravel()), tuple(axisPoints[2].ravel() + delta), (0,255,0), 3)
+    frame = cv2.line(frame, tuple(corners2D_pr[0].ravel()), tuple(axisPoints[3].ravel() + delta), (0,0,255), 3)
+    return frame
+
+
 if __name__ == '__main__' and __package__ is None:
     import sys
     print(sys.argv)
     if len(sys.argv) == 3:
-        conf_th = 0.09
+        conf_th = 0.4
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
+
         #class number = 0
         datacfg0 = 'multi_obj_pose_estimation/cfg/brownGlyph.data'
         #class number = 1
         datacfg1 = 'multi_obj_pose_estimation/cfg/powerCell_occlusion.data'
-        # #class number = 2 
-        # datacfg2 = 'multi_obj_pose_estimation/cfg/hatchPanel_occlusion.data'
+        #class number = 2
+        datacfg2 = 'multi_obj_pose_estimation/cfg/upperPortRed.data'
+        #class number = 3
+        datacfg3 = 'multi_obj_pose_estimation/cfg/upperPortBlue_occlusion.data'
         
-        valid(datacfg0, datacfg1, cfgfile, weightfile, conf_th)
+        valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th)
 
     else:
         print('Usage:')

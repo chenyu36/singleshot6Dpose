@@ -141,7 +141,7 @@ def pnp(points_3D, points_2D, cameraMatrix):
 
     R, _ = cv2.Rodrigues(R_exp)
     # Rt = np.c_[R, t]
-    return R, t
+    return R_exp, R, t
 
 def get_2d_bb(box, size):
     x = box[0]
