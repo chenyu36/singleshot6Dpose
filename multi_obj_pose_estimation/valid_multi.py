@@ -158,8 +158,8 @@ def valid(datacfg, cfgfile, weightfile, conf_th):
                 # Compute [R|t] by pnp
                 objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
                 K = np.array(internal_calibration, dtype='float32')
-                R_gt, t_gt = pnp(objpoints3D,  corners2D_gt_corrected, K)
-                R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
+                _, R_gt, t_gt = pnp(objpoints3D,  corners2D_gt_corrected, K)
+                _, R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
                 
                 # Compute pixel error
                 Rt_gt        = np.concatenate((R_gt, t_gt), axis=1)

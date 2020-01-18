@@ -125,7 +125,7 @@ def pnp(points_3D, points_2D, cameraMatrix):
 
     assert points_2D.shape[0] == points_2D.shape[0], 'points 3D and points 2D must have same number of vertices'
 
-    _, R_exp, t = cv2.solvePnP(points_3D,
+    _, rvecs, tvecs = cv2.solvePnP(points_3D,
                               # points_2D,
                               np.ascontiguousarray(points_2D[:,:2]).reshape((-1,1,2)),
                               cameraMatrix,
@@ -139,9 +139,9 @@ def pnp(points_3D, points_2D, cameraMatrix):
     #                            reprojectionError=12.0)
     # 
 
-    R, _ = cv2.Rodrigues(R_exp)
+    R, _ = cv2.Rodrigues(rvecs)
     # Rt = np.c_[R, t]
-    return R_exp, R, t
+    return rvecs, R, tvecs
 
 def get_2d_bb(box, size):
     x = box[0]

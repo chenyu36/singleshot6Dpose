@@ -254,9 +254,31 @@ def eval(niter, datacfg, cfgfile):
 
                     # Compute [R|t] by pnp
                     objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
+
+                    # make correction to 3D points for class 2 & 3 (i.e. upperPortRed and uppoerPortBlue)
+                    correspondingclass = boxes[j][20]
+                    if (correspondingclass == 2 or correspondingclass == 3):
+                        x_min_3d = 0
+                        x_max_3d = 1.2192
+                        y_min_3d = 0
+                        y_max_3d = 1.1176
+                        z_min_3d = 0
+                        z_max_3d = 0.003302
+                        centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+
+                        objpoints3D = np.array([centroid,\
+                        [ x_min_3d, y_min_3d, z_min_3d],\
+                        [ x_min_3d, y_min_3d, z_max_3d],\
+                        [ x_min_3d, y_max_3d, z_min_3d],\
+                        [ x_min_3d, y_max_3d, z_max_3d],\
+                        [ x_max_3d, y_min_3d, z_min_3d],\
+                        [ x_max_3d, y_min_3d, z_max_3d],\
+                        [ x_max_3d, y_max_3d, z_min_3d],\
+                        [ x_max_3d, y_max_3d, z_max_3d]])
+
                     K = np.array(internal_calibration, dtype='float32')
-                    R_gt, t_gt = pnp(objpoints3D,  corners2D_gt_corrected, K)
-                    R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
+                    _, R_gt, t_gt = pnp(objpoints3D,  corners2D_gt_corrected, K)
+                    _, R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
                     
                     # Compute pixel error
                     Rt_gt        = np.concatenate((R_gt, t_gt), axis=1)

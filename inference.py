@@ -303,7 +303,7 @@ def valid(datacfg, cfgfile, weightfile, outfile):
                     preds_corners2D.append(corners2D_pr)
                     
                     # Compute [R|t] by pnp
-                    R_pr, t_pr = pnp(np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32'),  corners2D_pr, np.array(internal_calibration, dtype='float32'))
+                    _, R_pr, t_pr = pnp(np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32'),  corners2D_pr, np.array(internal_calibration, dtype='float32'))
 
                     corner2d_pr_vertices = []
                     index = 0
