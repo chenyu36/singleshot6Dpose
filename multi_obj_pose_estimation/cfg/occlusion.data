@@ -1,9 +1,9 @@
 train  = cfg/train_occlusion.txt
 valid2  = ../FRC2019/powerCell/test_occlusion.txt	
-valid3  = ../FRC2019/upperPortBlue/test_occlusion.txt	
+valid3  = ../FRC2019/upperPortRed/test_occlusion.txt	
 backup = ./backup_multi
 mesh2 = ../FRC2019/powerCell/powerCell.ply	
-mesh3 = ../FRC2019/upperPortBlue/upperPortBlue.ply
+mesh3 = ../FRC2019/upperPortRed/upperPortRed.ply
 diam2 = 0.1778
 diam3 = 1.6540
 gpus = 0

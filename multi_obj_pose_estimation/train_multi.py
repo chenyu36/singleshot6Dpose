@@ -101,6 +101,7 @@ def train(epoch):
         # Update weights
         optimizer.step()
         t9 = time.time()
+
         # Print time statistics
         if False and batch_idx > 1:
             avg_time[0] = avg_time[0] + (t2-t1)
@@ -214,8 +215,6 @@ def eval(niter, datacfg, cfgfile):
 
                 # Get how many objects are present in the scene
                 num_gts = truths_length(truths)
-
-                #print('number of objects ', num_gts)
                 # Iterate through each ground-truth object
                 for k in range(num_gts):
                     box_gt        = [truths[k][1], truths[k][2], truths[k][3], truths[k][4], truths[k][5], truths[k][6], 
@@ -275,6 +274,8 @@ def eval(niter, datacfg, cfgfile):
                         [ x_max_3d, y_min_3d, z_max_3d],\
                         [ x_max_3d, y_max_3d, z_min_3d],\
                         [ x_max_3d, y_max_3d, z_max_3d]])
+                        # print('class ', correspondingclass, '\n', objpoints3D)
+                        # print('corners2D_gt \n', corners2D_gt)
 
                     K = np.array(internal_calibration, dtype='float32')
                     _, R_gt, t_gt = pnp(objpoints3D,  corners2D_gt_corrected, K)
@@ -340,8 +341,8 @@ def test(niter):
     logging("Testing powerCell...")
     eval(niter, datacfg, cfgfile)
 
-    datacfg = 'cfg/upperPortBlue_occlusion_multi_obj_training.data'
-    logging("Testing upperPortBlue...")
+    datacfg = 'cfg/upperPortRed_occlusion_multi_obj_training.data'
+    logging("Testing upperPortRed...")
     eval(niter, datacfg, cfgfile)
 
     # datacfg = 'cfg/holepuncher_occlusion.data'
@@ -443,10 +444,12 @@ if __name__ == "__main__":
     optimizer = optim.SGD(model.parameters(), lr=learning_rate/batch_size, momentum=momentum, dampening=0, weight_decay=decay*batch_size)
     # optimizer = optim.Adam(model.parameters(), lr=0.001) # Adam optimization
 
+    # add here : test validation before training, to weed out the glitches in the file paths
+    # set to True to test; set to False for training
     evaluate = False
     if evaluate:
         logging('evaluating ...')
-        test(0, 0)
+        test(0)
     else:
         t_init = time.time()
         for epoch in range(init_epoch, max_epochs): 
@@ -458,7 +461,7 @@ if __name__ == "__main__":
             print('training time this iteration ', "{0:.2f}".format(t_single_iter), ' sec')
 
             # TEST and SAVE
-            test_period = 10
+            test_period = 3
             if (epoch % test_period == 0) and (epoch is not 0):
                 t_before_test = time.time() 
                 test(niter)

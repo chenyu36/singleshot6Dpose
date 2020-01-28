@@ -414,21 +414,21 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
 	    # new multi obj: add here
             if debug_multi:
                 if 'upperPortRed' in obj_rand_mask_path:
-                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortRed/mask/', './test_upperPortRed/aug_')
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortRed/mask/', '../test_upperPortRed/aug_')
                     total_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortRed/mask/', '')
                     print('modified mask path: ', mod_obj_rand_mask_path)
                     np_obj_rand_masked_img = np.array(obj_rand_masked_img)
                     np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)
                     cv2.imwrite(mod_obj_rand_mask_path, np_obj_rand_masked_img)
                 elif 'upperPortBlue' in obj_rand_mask_path:
-                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortBlue/mask/', './test_upperPortBlue/aug_')
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortBlue/mask/', '../test_upperPortBlue/aug_')
                     total_mask_path = obj_rand_mask_path.replace('../FRC2019/upperPortBlue/mask/', '')
                     print('modified mask path: ', mod_obj_rand_mask_path)
                     np_obj_rand_masked_img = np.array(obj_rand_masked_img)
                     np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)
                     cv2.imwrite(mod_obj_rand_mask_path, np_obj_rand_masked_img)
                 elif 'powerCell' in obj_rand_mask_path:
-                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/powerCell/mask/', './test_powerCell/aug_')
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/powerCell/mask/', '../test_powerCell/aug_')
                     total_mask_path = obj_rand_mask_path.replace('../FRC2019/powerCell/mask/', '')
                     print('modified mask path: ', mod_obj_rand_mask_path)
                     np_obj_rand_masked_img = np.array(obj_rand_masked_img)
