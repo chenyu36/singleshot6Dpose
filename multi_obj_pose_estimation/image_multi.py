@@ -25,12 +25,14 @@ def load_data_detection_backup(imgpath, shape, jitter, hue, saturation, exposure
 # new multi obj: add here
 def get_add_objs(objname):
     # Decide how many additional objects you will augment and what will be the other types of objects
-    if objname == 'upperPortRed':
-        add_objs = ['powerCell', 'upperPortBlue']
-    elif objname == 'upperPortBlue':
-        add_objs = ['powerCell', 'upperPortRed']
+    if objname == 'brownGlyph':
+        add_objs = ['powerCell', 'powerCell', 'upperPortRed', 'powerCell', 'powerCell', 'upperPortBlue', 'powerCell', 'powerCell', 'powerCell']
     elif objname == 'powerCell':
-        add_objs = ['upperPortRed', 'upperPortBlue']    
+        add_objs = ['brownGlyph', 'powerCell', 'upperPortBlue', 'powerCell', 'upperPortRed', 'powerCell', 'brownGlyph', 'powerCell', 'powerCell']
+    elif objname == 'upperPortRed':
+        add_objs = ['brownGlyph', 'powerCell', 'upperPortBlue', 'powerCell', 'powerCell', 'upperPortBlue', 'powerCell', 'powerCell', 'powerCell']
+    elif objname == 'upperPortBlue':
+        add_objs = ['brownGlyph', 'powerCell', 'upperPortRed', 'powerCell', 'powerCell', 'upperPortRed', 'powerCell', 'powerCell', 'powerCell']
     return add_objs
 
 def mask_background(img, mask):
@@ -430,6 +432,13 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
                 elif 'powerCell' in obj_rand_mask_path:
                     mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/powerCell/mask/', '../test_powerCell/aug_')
                     total_mask_path = obj_rand_mask_path.replace('../FRC2019/powerCell/mask/', '')
+                    print('modified mask path: ', mod_obj_rand_mask_path)
+                    np_obj_rand_masked_img = np.array(obj_rand_masked_img)
+                    np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)
+                    cv2.imwrite(mod_obj_rand_mask_path, np_obj_rand_masked_img)
+                elif 'brownGlyph' in obj_rand_mask_path:
+                    mod_obj_rand_mask_path = obj_rand_mask_path.replace('../FRC2019/brownGlyph/mask/', '../test_brownGlyph/aug_')
+                    total_mask_path = obj_rand_mask_path.replace('../FRC2019/brownGlyph/mask/', '')
                     print('modified mask path: ', mod_obj_rand_mask_path)
                     np_obj_rand_masked_img = np.array(obj_rand_masked_img)
                     np_obj_rand_masked_img = cv2.cvtColor(np_obj_rand_masked_img, cv2.COLOR_BGR2RGB)

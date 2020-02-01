@@ -74,8 +74,10 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
     diam          = float(options['diam'])
 
     #define the paths to tensorRT models 
-    onnx_file_path = './trt_models/multi_objs/FRC2020models_v4_simplified.onnx'
-    engine_file_path = './trt_models/multi_objs/FRC2020models_v4.trt'
+    onnx_file_path = './trt_models/multi_objs/FRC2020models_v6_powerCell_retrained_simplified.onnx'
+    engine_file_path = './trt_models/multi_objs/FRC2020models_v6_powerCell_retrained_simplified.trt'
+    # onnx_file_path = './trt_models/multi_objs/FRC2020models_v5_tilt_camera_simplified.onnx'
+    # engine_file_path = './trt_models/multi_objs/FRC2020models_v5_tilt_camera_simplified.trt'
     # Read intrinsic camera parameters
     internal_calibration = get_camera_intrinsic()
     dist = get_camera_distortion_mat()
@@ -221,6 +223,42 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
                                     [ x_max_3d, y_min_3d, z_max_3d],\
                                     [ x_max_3d, y_max_3d, z_min_3d],\
                                     [ x_max_3d, y_max_3d, z_max_3d]])
+                                elif (correspondingclass == 1):
+                                    x_min_3d = 0
+                                    x_max_3d = 0.1778
+                                    y_min_3d = 0
+                                    y_max_3d = 0.1778
+                                    z_min_3d = 0
+                                    z_max_3d = 0.1778
+                                    centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+
+                                    objpoints3D = np.array([centroid,\
+                                    [ x_min_3d, y_min_3d, z_min_3d],\
+                                    [ x_min_3d, y_min_3d, z_max_3d],\
+                                    [ x_min_3d, y_max_3d, z_min_3d],\
+                                    [ x_min_3d, y_max_3d, z_max_3d],\
+                                    [ x_max_3d, y_min_3d, z_min_3d],\
+                                    [ x_max_3d, y_min_3d, z_max_3d],\
+                                    [ x_max_3d, y_max_3d, z_min_3d],\
+                                    [ x_max_3d, y_max_3d, z_max_3d]])
+                                elif (correspondingclass == 0):
+                                    x_min_3d = 0
+                                    x_max_3d = 0.1524
+                                    y_min_3d = 0
+                                    y_max_3d = 0.1524
+                                    z_min_3d = 0
+                                    z_max_3d = 0.1524
+                                    centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+
+                                    objpoints3D = np.array([centroid,\
+                                    [ x_min_3d, y_min_3d, z_min_3d],\
+                                    [ x_min_3d, y_min_3d, z_max_3d],\
+                                    [ x_min_3d, y_max_3d, z_min_3d],\
+                                    [ x_min_3d, y_max_3d, z_max_3d],\
+                                    [ x_max_3d, y_min_3d, z_min_3d],\
+                                    [ x_max_3d, y_min_3d, z_max_3d],\
+                                    [ x_max_3d, y_max_3d, z_min_3d],\
+                                    [ x_max_3d, y_max_3d, z_max_3d]])
 
                                 # troubleshooting rvecs
                                 # print('objpoints3D \n', objpoints3D)
@@ -239,7 +277,9 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
 
                                 draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh)
 
-                                frame = draw_axis(rvec, t_pr, frame, corners2D_pr)
+                                # only draw axis if the object is the upper power port
+                                if (correspondingclass == 2 or correspondingclass == 3):
+                                    frame = draw_axis(rvec, t_pr, frame, corners2D_pr)
 
                 cv2.imshow('6D pose estimation - multi-objects', frame)
                 detectedKey = cv2.waitKey(1) & 0xFF
@@ -402,7 +442,7 @@ if __name__ == '__main__' and __package__ is None:
     import sys
     print(sys.argv)
     if len(sys.argv) == 3:
-        conf_th = 0.4
+        conf_th = 0.45
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
 

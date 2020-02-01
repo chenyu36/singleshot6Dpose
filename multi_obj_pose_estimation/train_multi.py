@@ -274,6 +274,24 @@ def eval(niter, datacfg, cfgfile):
                         [ x_max_3d, y_min_3d, z_max_3d],\
                         [ x_max_3d, y_max_3d, z_min_3d],\
                         [ x_max_3d, y_max_3d, z_max_3d]])
+                    elif (correspondingclass == 1):
+                        x_min_3d = 0
+                        x_max_3d = 0.1778
+                        y_min_3d = 0
+                        y_max_3d = 0.1778
+                        z_min_3d = 0
+                        z_max_3d = 0.1778
+                        centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+
+                        objpoints3D = np.array([centroid,\
+                        [ x_min_3d, y_min_3d, z_min_3d],\
+                        [ x_min_3d, y_min_3d, z_max_3d],\
+                        [ x_min_3d, y_max_3d, z_min_3d],\
+                        [ x_min_3d, y_max_3d, z_max_3d],\
+                        [ x_max_3d, y_min_3d, z_min_3d],\
+                        [ x_max_3d, y_min_3d, z_max_3d],\
+                        [ x_max_3d, y_max_3d, z_min_3d],\
+                        [ x_max_3d, y_max_3d, z_max_3d]])                     	
                         # print('class ', correspondingclass, '\n', objpoints3D)
                         # print('corners2D_gt \n', corners2D_gt)
 
@@ -337,12 +355,17 @@ def test(niter):
     # logging("Testing hatchPanel...")
     # eval(niter, datacfg, cfgfile)
 
-    datacfg = 'cfg/powerCell_occlusion_multi_obj_training.data'
-    logging("Testing powerCell...")
+
+    datacfg = 'cfg/upperPortBlue_occlusion_multi_obj_training.data'
+    logging("Testing upperPortBlue...")
     eval(niter, datacfg, cfgfile)
 
     datacfg = 'cfg/upperPortRed_occlusion_multi_obj_training.data'
     logging("Testing upperPortRed...")
+    eval(niter, datacfg, cfgfile)
+
+    datacfg = 'cfg/powerCell_occlusion_multi_obj_training.data'
+    logging("Testing powerCell...")
     eval(niter, datacfg, cfgfile)
 
     # datacfg = 'cfg/holepuncher_occlusion.data'
@@ -477,9 +500,13 @@ if __name__ == "__main__":
                     testing_iters=testing_iters,
                     testing_accuracies_5pixel=testing_accuracies_5pixel,
                     testing_accuracies=testing_accuracies,
-                    testing_errors_pixel=testing_errors_pixel) 
-                if (np.mean(testing_accuracies[-5:]) > best_acc ):
-                    best_acc = np.mean(testing_accuracies[-5:])
+                    testing_errors_pixel=testing_errors_pixel)
+                # add here : adapt the number of classes to be tested and averaged for their training accuracy
+                num_classes = model.module.num_classes
+                if num_classes >= 1:
+                	test_num_classes = num_classes - 1
+                if (np.mean(testing_accuracies[-test_num_classes:]) > best_acc ): # testing for (num_classes - 1) models
+                    best_acc = np.mean(testing_accuracies[-test_num_classes:])
                     logging('best model so far!')
                     logging('save weights to %s/model.weights' % (backupdir))
                     model.module.save_weights('%s/model.weights' % (backupdir))

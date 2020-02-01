@@ -213,10 +213,19 @@ if __name__ == '__main__' and __package__ is None:
         # valid(datacfg, cfgfile, weightfile, conf_th)
         # datacfg = 'cfg/hatchPanel_occlusion_multi_obj_training.data'
         # valid(datacfg, cfgfile, weightfile, conf_th)
+
+
+        datacfg = 'cfg/upperPortBlue_occlusion_multi_obj_training.data'
+        valid(datacfg, cfgfile, weightfile, conf_th)
+
+        datacfg = 'cfg/upperPortRed_occlusion_multi_obj_training.data'
+        valid(datacfg, cfgfile, weightfile, conf_th)
+
         datacfg = 'cfg/powerCell_occlusion_multi_obj_training.data'
         valid(datacfg, cfgfile, weightfile, conf_th)
-        datacfg = 'cfg/upperPortRed_occlusion_multi_obj_training.data'
-        valid(datacfg, cfgfile, weightfile, conf_th)       
+
+        # datacfg = 'cfg/upperPortRed_occlusion_multi_obj_training.data'
+        # valid(datacfg, cfgfile, weightfile, conf_th)       
     else:
         print('Usage:')
         print(' python valid_multi.py cfgfile weightfile')
