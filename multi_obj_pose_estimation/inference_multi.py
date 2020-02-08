@@ -3,7 +3,7 @@ os.sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 from torch.autograd import Variable
 from torchvision import datasets, transforms
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import scipy.misc
 import warnings
 warnings.filterwarnings("ignore")
@@ -74,10 +74,10 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
     diam          = float(options['diam'])
 
     #define the paths to tensorRT models 
-    onnx_file_path = './trt_models/multi_objs/FRC2020models_v6_powerCell_retrained_simplified.onnx'
-    engine_file_path = './trt_models/multi_objs/FRC2020models_v6_powerCell_retrained_simplified.trt'
-    # onnx_file_path = './trt_models/multi_objs/FRC2020models_v5_tilt_camera_simplified.onnx'
-    # engine_file_path = './trt_models/multi_objs/FRC2020models_v5_tilt_camera_simplified.trt'
+    #onnx_file_path = './trt_models/multi_objs/FRC2020models_v6_powerCell_retrained_simplified.onnx'
+    #engine_file_path = './trt_models/multi_objs/FRC2020models_v6_powerCell_retrained_simplified.trt'
+    onnx_file_path = './trt_models/multi_objs/FRC2020models_v8_powercell_powerport.onnx'
+    engine_file_path = './trt_models/multi_objs/FRC2020models_v8_powercell_powerport_simplified.trt'
     # Read intrinsic camera parameters
     internal_calibration = get_camera_intrinsic()
     dist = get_camera_distortion_mat()
