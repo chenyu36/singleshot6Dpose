@@ -252,6 +252,21 @@ def bbox_iou_cube(box1, box2, x1y1x2y2=True):
     uarea = area1 + area2 - carea
     return carea/uarea
 
+def convert_bbox_format_for_sorting(bboxes):
+    all_boxes = []
+    for i in range(len(bboxes)):
+        w = 1280
+        h = 720
+        x1 = bboxes[i][6]*w
+        y1 = bboxes[i][7]*h
+        x2 = bboxes[i][10]*w
+        y2 = bboxes[i][11]*h
+        confidence = bboxes[i][18]
+        confidence = bboxes[i][18]
+        class_label = bboxes[i][20]
+        all_boxes.append([x1, y1, x2, y2, confidence, confidence, class_label])
+    return all_boxes
+
 def corner_confidences(gt_corners, pr_corners, th=30, sharpness=2, im_width=1280, im_height=720):
     ''' gt_corners: Ground-truth 2D projections of the 3D bounding box corners, shape: (16 x nA), type: torch.FloatTensor
         pr_corners: Prediction for the 2D projections of the 3D bounding box corners, shape: (16 x nA), type: torch.FloatTensor

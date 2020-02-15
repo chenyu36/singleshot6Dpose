@@ -1,2 +1,2 @@
 python3 -m onnxsim input_onnx_model output_onnx_model
-python3 -m onnxsim FRC2020models_v7_powercell_and_powerport.onnx FRC2020models_v7_powercell_and_powerport_simplified.onnx
+python3 -m onnxsim FRC2020models_v9_powerCell_powerPort.onnx FRC2020models_v9_powerCell_powerPort_simplified.onnx

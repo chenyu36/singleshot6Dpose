@@ -12,6 +12,8 @@ from darknet_multi import Darknet
 from utils import *
 import dataset_multi
 from MeshPly import MeshPly
+from sort import *
+import numpy as np
 
 check_z_plausibility = False
 debug_multi_boxes = True
@@ -126,6 +128,9 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
     edges = [[1, 2], [1, 3], [1, 5], [2, 4], [2, 6], [3, 4], [3, 7], [4, 8], [5, 6], [5, 7], [6, 8], [7, 8]]
     edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
 
+    # object tracker
+    mot_tracker = Sort() 
+
     # Iterate through test batches (Batch size for test data is 1)
     #logging('Testing {}...'.format(name))
     with get_engine(onnx_file_path, engine_file_path) as engine, engine.create_execution_context() as context:
@@ -152,18 +157,26 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
                 #     boxes = get_corresponding_region_boxes(detection_result, conf_thresh, model.num_classes, model.anchors, model.num_anchors, correspondingclass, only_objectness=1, validation=True)[0]
                 #     boxes = nms_multi_v2(boxes, nms_thresh)
                 #     all_boxes.append(boxes)
-        
 
+                tracked_objects = []
                 # debug: print all the detected box's class
                 for box in all_boxes:
                     if debug_multi_boxes:
                         print('box\n', box)
                     #print('box cluster')
                     for i in range(len(box)):
-                        print('box class ', int(box[i][20]), ' confidence ', "{0:.2f}".format(float(box[i][18])))     
+                        print('box class ', int(box[i][20]), ' confidence ', "{0:.2f}".format(float(box[i][18])))
+
+                    # converted_boxes = convert_bbox_format_for_sorting(box)
+                    # tensor_boxes = torch.from_numpy(np.array(converted_boxes))
+
+                    # print('tensor_boxes ', tensor_boxes)
+                    # if (len(tensor_boxes)) > 0:
+                    #     tracked_objects = mot_tracker.update(tensor_boxes) 
+                    #     print('tracked_objects ', tracked_objects)   
 
                 # all_boxes = nms_multi(all_boxes, nms_thresh)
-                
+
                 for boxes in all_boxes:
 
                     # For each image, get all the predictions
@@ -171,7 +184,41 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
                     #boxes   = all_boxes[i][0]
                     #correspondingclass = i + 1            
                     best_conf_est = -1
-                    
+                    converted_boxes = convert_bbox_format_for_sorting(boxes)
+                    tensor_boxes = torch.from_numpy(np.array(converted_boxes))
+                    is_boxes_appended = False
+                    print('tensor_boxes ', tensor_boxes)
+                    if (len(tensor_boxes)) > 0:
+                        tracked_objects = mot_tracker.update(tensor_boxes) 
+                        print('tracked_objects ', tracked_objects)
+                        unique_ids = []
+                        for i in range(len(tracked_objects)):
+                            unique_ids.append(tracked_objects[i][4])
+                        print('unique_ids ', unique_ids)
+                        if len(tracked_objects) > 0:
+                            if len(tracked_objects) == len(boxes):
+                                # mapped the unique id to each box
+                                for j in range(len(tracked_objects)):
+                                    for i in range(len(boxes)):
+                                        if len(boxes[i])==21:
+                                            epsilon = 2
+                                            if abs(boxes[i][6]*1280 - tracked_objects[j][0]) < epsilon and abs(boxes[i][7]*720 - tracked_objects[j][1]) < epsilon\
+                                               and abs(boxes[i][10]*1280 - tracked_objects[j][2]) < epsilon and abs(boxes[i][11]*720 - tracked_objects[j][3]) < epsilon:
+                                                print('i, j ', i,' ', j)
+                                                print('enter loop')
+                                                if (not tracked_objects[j][4] in unique_ids):
+                                                    i = 0
+                                                    continue
+                                                print('tracked_objects[j][4] ', tracked_objects[j][4])
+                                                if tracked_objects[j][4] in unique_ids:
+                                                    print("appending unique_id ", tracked_objects[j][4])
+                                                    boxes[i].append(int(tracked_objects[j][4])) # this should become index 21
+                                                    print('track objects x1 ', tracked_objects[j][0])
+                                                    unique_ids.remove(tracked_objects[j][4])
+                                                    print('remaining unique_ids ', unique_ids)
+
+                                                    
+                                     
 
                     # If the prediction has the highest confidence, choose it as our prediction
 
@@ -271,13 +318,15 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
 
                                 # Rt_pr        = np.concatenate((R_pr, t_pr), axis=1)
 
-                                # proj_2d_pred = compute_projection(vertices[i], Rt_pr, internal_calibration) 
-
                                 # proj_corners_pr = np.transpose(compute_projection(corners3D[i], Rt_pr, internal_calibration))
+                                if len(tracked_objects) == len(boxes):
+                                    print('length of tracked_objects ', len(tracked_objects))
+                                    if len(boxes[j])==22:
+                                        draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, boxes[j][21], correspondingclass)
+                                    #else:
+                                        #draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, 0)
 
-                                draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, correspondingclass)
-
-                                # only draw axis if the object is the upper power port
+                                #only draw axis if the object is the upper power port
                                 if (correspondingclass == 2 or correspondingclass == 3):
                                     frame = draw_axis(rvec, t_pr, frame, corners2D_pr)
 
@@ -319,6 +368,7 @@ def draw_cube(img, pts, obj_class):
         r = (0,0,255)
         g = (0,255,0)
         b = (255,0,0)
+
         color = g
         if obj_class == 1:
             color = g
@@ -326,6 +376,8 @@ def draw_cube(img, pts, obj_class):
             color = b
         elif obj_class == 3:
             color = r
+
+
         cv2.line(img,pts[2],pts[4],color,thickness)
         cv2.line(img,pts[4],pts[8],color,thickness)
         cv2.line(img,pts[8],pts[6],color,thickness)
@@ -344,7 +396,7 @@ def draw_cube(img, pts, obj_class):
         cv2.line(img,pts[7],pts[3],color,thickness)
         cv2.line(img,pts[3],pts[1],color,thickness)    
 
-def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, obj_class):
+def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, unique_id, obj_class):
 
     corner2d_pr_vertices = []
     index = 0
@@ -367,7 +419,8 @@ def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, obj_class):
                 pt_for_number = (int(x+5), int(y-5))
                 # only print the center point (index 0)
                 if index == 0:
-                    cv2.putText(frame, str(index), pt_for_number, font, font_scale, color, 2, lineType=8)
+                    #cv2.putText(frame, str(index), pt_for_number, font, font_scale, color, 2, lineType=8)
+                    cv2.putText(frame, str(unique_id), pt_for_number, font, font_scale, color, 2, lineType=8)
                 # skip the centroid, we only want the vertices
                 corner2d_pr_vertices.append(pt)
 
@@ -381,7 +434,6 @@ def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, obj_class):
         x1 = pt_for_label1[0]
         y1 = pt_for_label1[1]
         purple = (132,37,78)
-        #cv2.rectangle(frame, (x1, y1-20), (x1+len(x_cord)*19+60,y1), purple, -1)
         
 
         z = float(t_pr[2])
@@ -395,7 +447,7 @@ def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, obj_class):
                 x_cord = 'x ' + str("{0:.2f}".format(x)) + 'm'
             
                 x2 = pt_for_label2[0]
-                y2 = pt_for_label2[1]                        
+                y2 = pt_for_label2[1]                
                 cv2.rectangle(frame, (x2-5, y2-20*2), (x2+len(z_cord)*12,y2+5), purple, -1)
                 cv2.putText(frame, x_cord, pt_for_label1, font, font_scale, white, 1, lineType=8)
                 cv2.putText(frame, z_cord, pt_for_label2, font, font_scale, white, 1, lineType=8)
@@ -412,6 +464,7 @@ def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, obj_class):
             cv2.putText(frame, z_cord, pt_for_label2, font, font_scale, white, 1, lineType=8)
 
         draw_cube(frame, corner2d_pr_vertices, obj_class)
+        #draw_cube(output, corner2d_pr_vertices)
         # if z is less than zero; i.e. away from camera
         if (t_pr[2] < 0):
             print('x ', round(float(t_pr[0]), 2), 'y ', round(float(t_pr[1]), 2), 'z ', round(float(t_pr[2]), 2)) 
@@ -448,7 +501,7 @@ if __name__ == '__main__' and __package__ is None:
     import sys
     print(sys.argv)
     if len(sys.argv) == 3:
-        conf_th = 0.4
+        conf_th = 0.45
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
 
