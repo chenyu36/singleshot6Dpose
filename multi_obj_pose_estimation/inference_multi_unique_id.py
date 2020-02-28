@@ -76,10 +76,10 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
     diam          = float(options['diam'])
 
     #define the paths to tensorRT models 
-    #onnx_file_path = './trt_models/multi_objs/FRC2020models_v6_powerCell_retrained_simplified.onnx'
-    #engine_file_path = './trt_models/multi_objs/FRC2020models_v6_powerCell_retrained_simplified.trt'
-    onnx_file_path = './trt_models/multi_objs/FRC2020models_v9_powerCell_powerPort.onnx'
-    engine_file_path = './trt_models/multi_objs/FRC2020models_v9_powerCell_powerPort_simplified.trt'
+    onnx_file_path = './trt_models/multi_objs/FRC2020models_v10_powercell_powerport.onnx'
+    engine_file_path = './trt_models/multi_objs/FRC2020models_v10_powercell_powerport_simplified.trt'
+    #onnx_file_path = './trt_models/multi_objs/FRC2020models_v9_powerCell_powerPort.onnx'
+    #engine_file_path = './trt_models/multi_objs/FRC2020models_v9_powerCell_powerPort_simplified.trt'
     # Read intrinsic camera parameters
     internal_calibration = get_camera_intrinsic()
     dist = get_camera_distortion_mat()
@@ -397,13 +397,13 @@ def draw_cube(img, pts, obj_class):
         cv2.line(img,pts[3],pts[1],color,thickness)    
 
 def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, unique_id, obj_class):
-
+    ft_per_meter = 100/2.54/12
     corner2d_pr_vertices = []
     index = 0
     # not an empty array, AND, all corners are beyond a y threshold
     if (corners2D_pr.size > 0) and are_corners_greater_than_y_thres(corners2D_pr, y_dispay_thresh):
         ymin_pt = find_pt_with_smallest_y(corners2D_pr)
-        pt_for_label1= (int(ymin_pt[0]-30), int(ymin_pt[1]-30))
+        pt_for_label1= (int(ymin_pt[0]-50), int(ymin_pt[1]-30))
         pt_for_label2 = (int(ymin_pt[0]-50), int(ymin_pt[1]-10))
         for pt in corners2D_pr:
             # print('corners2D_pr', pt)
@@ -439,12 +439,13 @@ def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, unique_id, obj
         z = float(t_pr[2])
 
         # z is valid only if it's negative (i.e. away from camera)
+
         if check_z_plausibility:
             if (z <= 0):
-                z_cord = 'Depth ' + str("{0:.2f}".format(z)) + 'm'
+                z_cord = 'depth ' + str("{0:.2f}".format(abs(z)*ft_per_meter)) + ' ft'
 
                 x = float(t_pr[0])
-                x_cord = 'x ' + str("{0:.2f}".format(x)) + 'm'
+                x_cord = 'offset ' + str("{0:.2f}".format(x*ft_per_meter)) + ' ft'
             
                 x2 = pt_for_label2[0]
                 y2 = pt_for_label2[1]                
@@ -452,10 +453,10 @@ def draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, unique_id, obj
                 cv2.putText(frame, x_cord, pt_for_label1, font, font_scale, white, 1, lineType=8)
                 cv2.putText(frame, z_cord, pt_for_label2, font, font_scale, white, 1, lineType=8)
         else:
-            z_cord = 'Depth ' + str("{0:.2f}".format(z)) + 'm'
+            z_cord = 'depth ' + str("{0:.2f}".format(abs(z)*ft_per_meter)) + ' ft'
 
             x = float(t_pr[0])
-            x_cord = 'x ' + str("{0:.2f}".format(x)) + 'm'
+            x_cord = 'offset ' + str("{0:.2f}".format(x*ft_per_meter)) + ' ft'
             
             x2 = pt_for_label2[0]
             y2 = pt_for_label2[1]                        
@@ -501,7 +502,7 @@ if __name__ == '__main__' and __package__ is None:
     import sys
     print(sys.argv)
     if len(sys.argv) == 3:
-        conf_th = 0.45
+        conf_th = 0.37
         cfgfile = sys.argv[1]
         weightfile = sys.argv[2]
 
