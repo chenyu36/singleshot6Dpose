@@ -355,3 +355,9 @@ ASALocalRun/
 /VOCtrainval_11-May-2012.tar
 /LINEMOD.tar
 /backup.tar
+
+# onnx and trt models
+*.onnx
+*.trt
+/trt_models/multi_objs/*.onnx
+/trt_models/multi_objs/*.trt

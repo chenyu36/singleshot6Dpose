@@ -1851,7 +1851,7 @@ def do_detect_trt(context, img, conf_thresh, nms_thresh, bindings, inputs, outpu
 def do_detect_trt_multi(context, img, conf_thresh, nms_thresh, num_classes, anchors, num_anchors, bindings, inputs, outputs, stream, use_cuda=1):
     #model.eval()
     t0 = time.time()
-
+ 
     if isinstance(img, Image.Image):
         width = img.width
         height = img.height
@@ -1859,9 +1859,11 @@ def do_detect_trt_multi(context, img, conf_thresh, nms_thresh, num_classes, anch
         img = img.view(height, width, 3).transpose(0,1).transpose(0,2).contiguous()
         img = img.view(1, 3, height, width)
         img = img.float().div(255.0)
+        #print('img type is Image')
     elif type(img) == np.ndarray: # cv2 image
         img = torch.from_numpy(img.transpose(2,0,1)).float().div(255.0).unsqueeze(0)
-        img = img
+        img = np.ascontiguousarray(img, dtype=np.float32)
+        #print('img type is cv2')
     else:
         print("unknow image type")
         exit(-1)
@@ -1873,7 +1875,7 @@ def do_detect_trt_multi(context, img, conf_thresh, nms_thresh, num_classes, anch
     # img = torch.autograd.Variable(img)
     t2 = time.time()
 
-    inputs[0].host = img.numpy()
+    inputs[0].host = img
     trt_outputs = []
     trt_outputs = common.do_inference(context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream)
     trt_outputs = array(trt_outputs).reshape(1, num_anchors*(19 + num_classes),13,13)

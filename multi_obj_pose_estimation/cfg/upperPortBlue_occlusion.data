@@ -1,0 +1,12 @@
+valid  = FRC2019/upperPortBlue/test_occlusion.txt
+mesh = FRC2019/upperPortBlue/upperPortBlue.ply
+backup = backup_multi
+name = upperPortBlue
+diam = 1.6540
+gpus = 0
+im_width = 1280
+im_height = 720
+fx = 935.67 
+fy = 934.86
+u0 = 624.06
+v0 = 354.35
