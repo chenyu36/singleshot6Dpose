@@ -33,7 +33,7 @@ dummy_input = Variable(torch.randn(1, 3, 416, 416))
 # Obtain your model, it can be also constructed in your script explicitly
 model = m
 # Invoke export
-torch.onnx.export(model, dummy_input, './trt_models/multi_objs/FRC2020models_v10_powercell_powerport.onnx')
+torch.onnx.export(model, dummy_input, './trt_models/multi_objs/FRC2020models_v11_powercell_powerport.onnx')
 
 
 
@@ -95,9 +95,9 @@ def get_engine(onnx_file_path, engine_file_path=""):
 # However, on this machine, there is an error if using the onnx model directly
 # Run ONNX Simplifier <https://github.com/daquexian/onnx-simplifier> with the following command
 # python3 -m onnxsim input_onnx_model.onnx output_onnx_model.onnx
-onnx_file_path = './trt_models/multi_objs/FRC2020models_v10_powercell_powerport.onnx'
-#onnx_file_path = './trt_models/multi_objs/FRC2020models_v10_powercell_powerport_simplified.onnx'
-engine_file_path = './trt_models/multi_objs/FRC2020models_v10_powercell_powerport.trt'
+onnx_file_path = './trt_models/multi_objs/FRC2020models_v11_powercell_powerport.onnx'
+#onnx_file_path = './trt_models/multi_objs/FRC2020models_v11_powercell_powerport_simplified.onnx'
+engine_file_path = './trt_models/multi_objs/FRC2020models_v11_powercell_powerport.trt'
 input_image_path = './hatchPanel_sample.jpg'
 
 

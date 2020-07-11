@@ -74,8 +74,8 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, weightfile, conf_th):
     diam          = float(options['diam'])
 
     #define the paths to tensorRT models 
-    onnx_file_path = './trt_models/multi_objs/FRC2020models_v10_powercell_powerport.onnx'
-    engine_file_path = './trt_models/multi_objs/FRC2020models_v10_powercell_powerport.trt'
+    onnx_file_path = './trt_models/multi_objs/FRC2020models_v11_powercell_powerport.onnx'
+    engine_file_path = './trt_models/multi_objs/FRC2020models_v11_powercell_powerport.trt'
     #onnx_file_path = './trt_models/multi_objs/FRC2020models_v9_powerCell_powerPort.onnx'
     #engine_file_path = './trt_models/multi_objs/FRC2020models_v9_powerCell_powerPort_simplified.trt'
     # Read intrinsic camera parameters
