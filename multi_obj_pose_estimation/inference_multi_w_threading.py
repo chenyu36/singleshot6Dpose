@@ -94,9 +94,6 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, conf_th):
     test_width = 416
     test_height = 416
 
-    cap = cv2.VideoCapture(2, cv2.CAP_V4L)
-    cap = cv2.VideoCapture('./Videos/testPowerCellDetection_2ball_moving_v4.mp4') # was 0
-
     camera = UVC_Camera()
     camera.create_gstreamer_pipeline()
     camera.open(camera.gstreamer_pipeline)
@@ -142,169 +139,170 @@ def valid(datacfg0, datacfg1, datacfg2, datacfg3, cfgfile, conf_th):
             # Start counting the number of frames read and displayed
             camera.start_counting_fps()
             while cv2.getWindowProperty("6D pose estimation - multi-objects", 0) >= 0:
-                frame = read_camera(camera, SHOW_FPS)            
-                img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img = cv2.undistort(img, internal_calibration, dist, None, internal_calibration)
-                yolo_img =cv2.resize(img, (416, 416), interpolation=cv2.INTER_AREA)
+                frame = read_camera(camera, SHOW_FPS)
+                if frame is not None:
+                    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    img = cv2.undistort(img, internal_calibration, dist, None, internal_calibration)
+                    yolo_img =cv2.resize(img, (416, 416), interpolation=cv2.INTER_AREA)
 
-                all_boxes = []
-                output = []
-                #all_boxes = do_detect_multi_v3(model, yolo_img, conf_thresh, nms_thresh)
+                    all_boxes = []
+                    output = []
+                    #all_boxes = do_detect_multi_v3(model, yolo_img, conf_thresh, nms_thresh)
 
-                #detection_result = do_detect_multi_v2(model, yolo_img, conf_thresh, nms_thresh)
-                all_boxes = do_detect_trt_multi(context, yolo_img, conf_thresh, nms_thresh, num_classes, anchors, num_anchors, bindings, inputs, outputs, stream)
-                
-                # for i in range(num_classes):
-                #     correspondingclass = i
-                #     # experiment: chris
-                #     # override the default confidence threshold
-                #     conf_thresh = 0.20
-                #     boxes = get_corresponding_region_boxes(detection_result, conf_thresh, model.num_classes, model.anchors, model.num_anchors, correspondingclass, only_objectness=1, validation=True)[0]
-                #     boxes = nms_multi_v2(boxes, nms_thresh)
-                #     all_boxes.append(boxes)
-        
-
-                # debug: print all the detected box's class
-                for box in all_boxes:
-                    if debug_multi_boxes:
-                        print('box\n', box)
-                    #print('box cluster')
-                    for i in range(len(box)):
-                        print('box class ', int(box[i][20]), ' confidence ', "{0:.2f}".format(float(box[i][18])))     
-
-                # all_boxes = nms_multi(all_boxes, nms_thresh)
-                
-                for boxes in all_boxes:
-
-                    # For each image, get all the predictions
-
-                    #boxes   = all_boxes[i][0]
-                    #correspondingclass = i + 1            
-                    best_conf_est = -1
+                    #detection_result = do_detect_multi_v2(model, yolo_img, conf_thresh, nms_thresh)
+                    all_boxes = do_detect_trt_multi(context, yolo_img, conf_thresh, nms_thresh, num_classes, anchors, num_anchors, bindings, inputs, outputs, stream)
                     
+                    # for i in range(num_classes):
+                    #     correspondingclass = i
+                    #     # experiment: chris
+                    #     # override the default confidence threshold
+                    #     conf_thresh = 0.20
+                    #     boxes = get_corresponding_region_boxes(detection_result, conf_thresh, model.num_classes, model.anchors, model.num_anchors, correspondingclass, only_objectness=1, validation=True)[0]
+                    #     boxes = nms_multi_v2(boxes, nms_thresh)
+                    #     all_boxes.append(boxes)
+            
 
-                    # If the prediction has the highest confidence, choose it as our prediction
+                    # debug: print all the detected box's class
+                    for box in all_boxes:
+                        if debug_multi_boxes:
+                            print('box\n', box)
+                        #print('box cluster')
+                        for i in range(len(box)):
+                            print('box class ', int(box[i][20]), ' confidence ', "{0:.2f}".format(float(box[i][18])))     
 
-                        # if (boxes[18] > best_conf_est) and (boxes[20] == correspondingclass):
-                        #     best_conf_est = boxes[18]
-                        #     box_pr        = boxes
-                        #     bb2d_pr       = get_2d_bb(box_pr[:18], output.size(3))
-                    #print('checking class ', boxes[20])
-                    for i in range(num_classes):
-                        correspondingclass = i
-                        # skipping brownGlyph which is class 0
-                        if correspondingclass == 0:
-                            continue
-                        for j in range(len(boxes)):
-     
-                            if (boxes[j][20] == correspondingclass):
-                                print('detected obj class is ', correspondingclass)
-                                box_pr        = boxes[j]
+                    # all_boxes = nms_multi(all_boxes, nms_thresh)
+                    
+                    for boxes in all_boxes:
 
-                                # Denormalize the corner predictions
-                                corners2D_pr = np.array(np.reshape(box_pr[:18], [9, 2]), dtype='float32')
+                        # For each image, get all the predictions
+
+                        #boxes   = all_boxes[i][0]
+                        #correspondingclass = i + 1            
+                        best_conf_est = -1
+                        
+
+                        # If the prediction has the highest confidence, choose it as our prediction
+
+                            # if (boxes[18] > best_conf_est) and (boxes[20] == correspondingclass):
+                            #     best_conf_est = boxes[18]
+                            #     box_pr        = boxes
+                            #     bb2d_pr       = get_2d_bb(box_pr[:18], output.size(3))
+                        #print('checking class ', boxes[20])
+                        for i in range(num_classes):
+                            correspondingclass = i
+                            # skipping brownGlyph which is class 0
+                            if correspondingclass == 0:
+                                continue
+                            for j in range(len(boxes)):
+        
+                                if (boxes[j][20] == correspondingclass):
+                                    print('detected obj class is ', correspondingclass)
+                                    box_pr        = boxes[j]
+
+                                    # Denormalize the corner predictions
+                                    corners2D_pr = np.array(np.reshape(box_pr[:18], [9, 2]), dtype='float32')
+                                    
+                                    corners2D_pr[:, 0] = corners2D_pr[:, 0] * 1280
+                                    corners2D_pr[:, 1] = corners2D_pr[:, 1] * 720
+                                    # Compute [R|t] by pnp
+                                    # print('corners3D \n', corners3D)
+
+                                    objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[i][:3, :]), axis=1)), dtype='float32')
+
+                                    # the order of 3D vertices from the above function is incorrect, for upperPortRed and upperPortBlue, 
+                                    # so we manually calculate 3D points (i.e. centroid + vertices) manually
+                                    # the order of vertices is according to this link (see point 2)
+                                    # https://github.com/microsoft/singleshotpose/blob/master/label_file_creation.md
+                                    if (correspondingclass == 2 or correspondingclass == 3):
+                                        x_min_3d = 0
+                                        x_max_3d = 1.2192
+                                        y_min_3d = 0
+                                        y_max_3d = 1.1176
+                                        z_min_3d = 0
+                                        z_max_3d = 0.003302
+                                        centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+
+                                        objpoints3D = np.array([centroid,\
+                                        [ x_min_3d, y_min_3d, z_min_3d],\
+                                        [ x_min_3d, y_min_3d, z_max_3d],\
+                                        [ x_min_3d, y_max_3d, z_min_3d],\
+                                        [ x_min_3d, y_max_3d, z_max_3d],\
+                                        [ x_max_3d, y_min_3d, z_min_3d],\
+                                        [ x_max_3d, y_min_3d, z_max_3d],\
+                                        [ x_max_3d, y_max_3d, z_min_3d],\
+                                        [ x_max_3d, y_max_3d, z_max_3d]])
+                                    elif (correspondingclass == 1):
+                                        x_min_3d = 0
+                                        x_max_3d = 0.1778
+                                        y_min_3d = 0
+                                        y_max_3d = 0.1778
+                                        z_min_3d = 0
+                                        z_max_3d = 0.1778
+                                        centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+
+                                        objpoints3D = np.array([centroid,\
+                                        [ x_min_3d, y_min_3d, z_min_3d],\
+                                        [ x_min_3d, y_min_3d, z_max_3d],\
+                                        [ x_min_3d, y_max_3d, z_min_3d],\
+                                        [ x_min_3d, y_max_3d, z_max_3d],\
+                                        [ x_max_3d, y_min_3d, z_min_3d],\
+                                        [ x_max_3d, y_min_3d, z_max_3d],\
+                                        [ x_max_3d, y_max_3d, z_min_3d],\
+                                        [ x_max_3d, y_max_3d, z_max_3d]])
+                                    elif (correspondingclass == 0):
+                                        x_min_3d = 0
+                                        x_max_3d = 0.1524
+                                        y_min_3d = 0
+                                        y_max_3d = 0.1524
+                                        z_min_3d = 0
+                                        z_max_3d = 0.1524
+                                        centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+
+                                        objpoints3D = np.array([centroid,\
+                                        [ x_min_3d, y_min_3d, z_min_3d],\
+                                        [ x_min_3d, y_min_3d, z_max_3d],\
+                                        [ x_min_3d, y_max_3d, z_min_3d],\
+                                        [ x_min_3d, y_max_3d, z_max_3d],\
+                                        [ x_max_3d, y_min_3d, z_min_3d],\
+                                        [ x_max_3d, y_min_3d, z_max_3d],\
+                                        [ x_max_3d, y_max_3d, z_min_3d],\
+                                        [ x_max_3d, y_max_3d, z_max_3d]])
+
+                                    # troubleshooting rvecs
+                                    # print('objpoints3D \n', objpoints3D)
+                                    # print('corners2D_pr \n', corners2D_pr)
+                                    K = np.array(internal_calibration, dtype='float32')
+
+                                    rvec, R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
                                 
-                                corners2D_pr[:, 0] = corners2D_pr[:, 0] * 1280
-                                corners2D_pr[:, 1] = corners2D_pr[:, 1] * 720
-                                # Compute [R|t] by pnp
-                                # print('corners3D \n', corners3D)
+                                    # Compute pixel error
 
-                                objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[i][:3, :]), axis=1)), dtype='float32')
+                                    # Rt_pr        = np.concatenate((R_pr, t_pr), axis=1)
 
-                                # the order of 3D vertices from the above function is incorrect, for upperPortRed and upperPortBlue, 
-                                # so we manually calculate 3D points (i.e. centroid + vertices) manually
-                                # the order of vertices is according to this link (see point 2)
-                                # https://github.com/microsoft/singleshotpose/blob/master/label_file_creation.md
-                                if (correspondingclass == 2 or correspondingclass == 3):
-                                    x_min_3d = 0
-                                    x_max_3d = 1.2192
-                                    y_min_3d = 0
-                                    y_max_3d = 1.1176
-                                    z_min_3d = 0
-                                    z_max_3d = 0.003302
-                                    centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+                                    # proj_2d_pred = compute_projection(vertices[i], Rt_pr, internal_calibration) 
 
-                                    objpoints3D = np.array([centroid,\
-                                    [ x_min_3d, y_min_3d, z_min_3d],\
-                                    [ x_min_3d, y_min_3d, z_max_3d],\
-                                    [ x_min_3d, y_max_3d, z_min_3d],\
-                                    [ x_min_3d, y_max_3d, z_max_3d],\
-                                    [ x_max_3d, y_min_3d, z_min_3d],\
-                                    [ x_max_3d, y_min_3d, z_max_3d],\
-                                    [ x_max_3d, y_max_3d, z_min_3d],\
-                                    [ x_max_3d, y_max_3d, z_max_3d]])
-                                elif (correspondingclass == 1):
-                                    x_min_3d = 0
-                                    x_max_3d = 0.1778
-                                    y_min_3d = 0
-                                    y_max_3d = 0.1778
-                                    z_min_3d = 0
-                                    z_max_3d = 0.1778
-                                    centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+                                    # proj_corners_pr = np.transpose(compute_projection(corners3D[i], Rt_pr, internal_calibration))
 
-                                    objpoints3D = np.array([centroid,\
-                                    [ x_min_3d, y_min_3d, z_min_3d],\
-                                    [ x_min_3d, y_min_3d, z_max_3d],\
-                                    [ x_min_3d, y_max_3d, z_min_3d],\
-                                    [ x_min_3d, y_max_3d, z_max_3d],\
-                                    [ x_max_3d, y_min_3d, z_min_3d],\
-                                    [ x_max_3d, y_min_3d, z_max_3d],\
-                                    [ x_max_3d, y_max_3d, z_min_3d],\
-                                    [ x_max_3d, y_max_3d, z_max_3d]])
-                                elif (correspondingclass == 0):
-                                    x_min_3d = 0
-                                    x_max_3d = 0.1524
-                                    y_min_3d = 0
-                                    y_max_3d = 0.1524
-                                    z_min_3d = 0
-                                    z_max_3d = 0.1524
-                                    centroid = [(x_min_3d+x_max_3d)/2, (y_min_3d+y_max_3d)/2, (z_min_3d+z_max_3d)/2]
+                                    draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, correspondingclass)
 
-                                    objpoints3D = np.array([centroid,\
-                                    [ x_min_3d, y_min_3d, z_min_3d],\
-                                    [ x_min_3d, y_min_3d, z_max_3d],\
-                                    [ x_min_3d, y_max_3d, z_min_3d],\
-                                    [ x_min_3d, y_max_3d, z_max_3d],\
-                                    [ x_max_3d, y_min_3d, z_min_3d],\
-                                    [ x_max_3d, y_min_3d, z_max_3d],\
-                                    [ x_max_3d, y_max_3d, z_min_3d],\
-                                    [ x_max_3d, y_max_3d, z_max_3d]])
+                                    # only draw axis if the object is the upper power port
+                                    if (correspondingclass == 2 or correspondingclass == 3):
+                                        frame = draw_axis(rvec, t_pr, frame, corners2D_pr)
 
-                                # troubleshooting rvecs
-                                # print('objpoints3D \n', objpoints3D)
-                                # print('corners2D_pr \n', corners2D_pr)
-                                K = np.array(internal_calibration, dtype='float32')
+                    #cv2.imshow('6D pose estimation - multi-objects', frame)
+                    cv2.imshow("6D pose estimation - multi-objects", frame)
+                    camera.frames_displayed += 1
 
-                                rvec, R_pr, t_pr = pnp(objpoints3D,  corners2D_pr, K)
-                            
-                                # Compute pixel error
-
-                                # Rt_pr        = np.concatenate((R_pr, t_pr), axis=1)
-
-                                # proj_2d_pred = compute_projection(vertices[i], Rt_pr, internal_calibration) 
-
-                                # proj_corners_pr = np.transpose(compute_projection(corners3D[i], Rt_pr, internal_calibration))
-
-                                draw_bbox_for_obj(corners2D_pr, t_pr, frame, y_dispay_thresh, correspondingclass)
-
-                                # only draw axis if the object is the upper power port
-                                if (correspondingclass == 2 or correspondingclass == 3):
-                                    frame = draw_axis(rvec, t_pr, frame, corners2D_pr)
-
-                #cv2.imshow('6D pose estimation - multi-objects', frame)
-                cv2.imshow("6D pose estimation - multi-objects", frame)
-                camera.frames_displayed += 1
-
-                detectedKey = cv2.waitKey(1) & 0xFF
-                if detectedKey == ord('c'):
-                    timestamp = time.time()
-                    cv2.imwrite('./screenshots/screeshot' + str(timestamp) + '.jpg', frame)
-                    print('captured screeshot')
-                elif detectedKey == ord('q'):
-                    print('quitting program')
-                    camera.stop()
-                    camera.release()
-                    break
+                    detectedKey = cv2.waitKey(1) & 0xFF
+                    if detectedKey == ord('c'):
+                        timestamp = time.time()
+                        cv2.imwrite('./screenshots/screeshot' + str(timestamp) + '.jpg', frame)
+                        print('captured screeshot')
+                    elif detectedKey == ord('q'):
+                        print('quitting program')
+                        camera.stop()
+                        camera.release()
+                        break
         finally:
             camera.stop()
             camera.release()
